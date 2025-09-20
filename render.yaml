@@ -1,5 +1,6 @@
 services:
   - type: web
+<<<<<<< HEAD
     name: TailwindBlazorApp
     env: dotnet
     branch: main
@@ -7,6 +8,11 @@ services:
     plan: free
     buildCommand: "dotnet publish -c Release -o publish"
     startCommand: "dotnet publish/TailwindBlazorApp.Web.dll"
+=======
+    name: blazor-server-net9
+    env: docker
+    plan: free
+>>>>>>> 695e73b (Recommit full solution)
     envVars:
       - key: DB_HOST
         sync: false
