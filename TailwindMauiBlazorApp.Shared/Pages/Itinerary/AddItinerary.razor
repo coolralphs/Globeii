@@ -183,13 +183,15 @@
         newItinerary.StartDate = newItinerary.StartDate;
         newItinerary.EndDate = newItinerary.EndDate;
         newItinerary.Name = trimmedName;
-
+        // db.CurrentUserId = userId;
         if (!IsEdit)
         {
+            newItinerary.CreatedBy = userId;
             db.Itineraries.Add(newItinerary);
         }
         else
         {
+            newItinerary.UpdatedBy = userId;
             db.Itineraries.Update(newItinerary);
         }
 
