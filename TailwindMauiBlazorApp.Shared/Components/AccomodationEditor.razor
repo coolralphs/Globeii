@@ -1,0 +1,1280 @@
+﻿@using BlazorBootstrap
+@using TailwindMauiBlazorApp.Shared.Helpers
+@using static TailwindMauiBlazorApp.Shared.Helpers.DateHelper
+@using TailwindMauiBlazorApp.Shared.Models.ViewModels
+@using TailwindMauiBlazorApp.Shared.Models.Enums
+@inject JsInterop JsInterop
+
+<div class="p-2" style="z-index:1; padding-bottom: 0 !important;">
+
+    <div class="d-flex justify-content-end mb-2">
+        <button class="btn btn-link p-0 d-flex align-items-center text-decoration-none"
+                @onclick="ToggleConfig"
+                aria-expanded="@isConfigOpen"
+                aria-controls="configCollapse">
+            <i class="bi bi-gear me-2"></i>
+            <strong>Configuration</strong>
+            <i class="bi @(isConfigOpen ? "bi-chevron-up" : "bi-chevron-down") ms-2"></i>
+        </button>
+    </div>
+
+    @if (isConfigOpen)
+    {
+        <div class="d-flex gap-4 p-3 border rounded w-100 mb-2 time-config-container">
+            <!-- Day starts at -->
+            <div class="d-flex flex-column" style="min-width: 150px;">
+                <div class="d-flex align-items-center mb-1">
+                    <label class="form-label mb-0 me-1">Day starts at:</label>
+                    <Tooltip Title="The first place added to a date will start at this time." role="button">
+                        <i class="bi bi-info-circle text-info" @onclick='@(e => ShowInfo(e, "StartDate"))' @onclick:stopPropagation="true"></i>
+                    </Tooltip>
+                </div>
+                @if (showDayStartInfo)
+                {
+                    <small class="text-muted mb-1">
+                        Select the time your day starts. This will adjust the itinerary timeline accordingly.
+                    </small>
+                }
+
+                <div class="ms-2 me-1" style="width: 120px;">
+                    <InputTimeSpan Value="StartTime"
+                                   ValueChanged="OnStartTimeChanged"
+                                   ValueExpression="() => StartTime"
+                                   CssClass="form-control form-control-sm small-time-input" />
+                </div>
+            </div>
+
+            <!-- Time increment -->
+            <div class="d-flex flex-column" style="min-width: 150px;">
+                <div class="d-flex align-items-center mb-1">
+                    <label class="form-label mb-0 me-1">Time increment:</label>
+                    <Tooltip Title="A new place added to a date will be incremented by this amount from the last place." role="button">
+                        <i class="bi bi-info-circle text-info" @onclick='@(e => ShowInfo(e, "TimeIncrement"))' @onclick:stopPropagation="true"></i>
+                    </Tooltip>
+                </div>
+                @if (showTimeIncrementInfo)
+                {
+                    <small class="text-muted mb-1">
+                        Set the step size in minutes for time selections.
+                    </small>
+                }
+
+                <div class="d-flex align-items-center">
+                    <InputNumber Value="TimeIncrement"
+                                 ValueChanged="TimeIncrementChanged"
+                                 ValueExpression="() => TimeIncrement"
+                                 class="form-control form-control-sm"
+                                 style="width: 80px;"
+                                 min="0"
+                                 step="15" />
+                    <span class="ms-2">min</span>
+                </div>
+            </div>
+        </div>
+    }
+
+
+    @if (Accomodations != null)
+    {
+        @* @foreach (var item in Accomodations.OrderBy(o => o.StartDate).ToList())
+        { *@
+        <div class="mb-4" style="z-index:1 !important;">
+
+            <SortableList TItem="ItineraryAccomodationViewModel"
+                          Group="AccomodationsGroup"
+                          Data="@Accomodations.OrderBy(o=>o.StartDate).ToList()"
+                          Context="item"
+                          Style="z-index:1;"
+                          AllowSorting="false">
+                <ItemTemplate>
+                    @{
+                        var index = Accomodations.IndexOf(item);
+                    }
+
+                    <div class="d-flex align-items-start w-100 m-1" style="gap: 8px;">
+
+                        <!-- Left / Middle Content -->
+                        <div class="flex-grow-1 d-flex flex-column" style="min-width: 0; overflow: hidden;">
+
+                            <!-- Place Name -->
+                            <div class="fw-bold text-truncate">
+                                <i class="bi bi-building" style="font-size: 1.2rem;"></i> @item.Place.DisplayName
+                            </div>
+
+                            <!-- Check-In Row -->
+                            <div class="d-flex align-items-center mt-1">Check-In</div>
+                            <div class="d-flex align-items-center mt-1" style="width: 110px;"
+                                 @onclick:stopPropagation @onmousedown:stopPropagation @onkeydown:stopPropagation>
+                                <DateInputString @ref="startDateInput"
+                                                 DateValue="@item.StartDate.ToString("yyyy-MM-dd")"
+                                                 CssClass="form-control form-control-sm"
+                                                 OnDateChangedWithOld="@(args => OnDateChanged(item,  "StartDate", args.NewDate))" />
+                                @*   <InputDate TValue="DateTime"
+                                           Value="item.StartDate"
+                                           ValueChanged="@(date => OnDateChanged(item, date))"
+                                           ValueExpression="() => item.StartDate"
+                                           class="form-control form-control-sm"
+                                           style="width: 120px;" /> *@
+                                <InputTimeSpan Value="item.StartTime"
+                                               ValueChanged="OnStartTimeChanged"
+                                               ValueExpression="() => item.StartTime"
+                                               CssClass="form-control form-control-sm" />
+                            </div>
+
+                            <!-- Check-Out Row -->
+                            <div class="d-flex align-items-center mt-1">Check-Out</div>
+                            <div class="d-flex align-items-center mt-1" style="width: 110px;"
+                                 @onclick:stopPropagation @onmousedown:stopPropagation @onkeydown:stopPropagation>
+                                <DateInputString @ref="endDateInput"
+                                                 DateValue="@item.EndDate.ToString("yyyy-MM-dd")"
+                                                 CssClass="form-control form-control-sm"
+                                                 OnDateChangedWithOld="@(args => OnDateChanged(item, "EndDate",args.NewDate))" />
+                                @* <InputDate TValue="DateTime"
+                                           Value="item.EndDate"
+                                           ValueChanged="@(date => OnDateChanged(item, date))"
+                                           ValueExpression="() => item.EndDate"
+                                           class="form-control form-control-sm"
+                                           style="width: 120px;" /> *@
+                                <InputTimeSpan Value="item.EndTime"
+                                               ValueChanged="OnStartTimeChanged"
+                                               ValueExpression="() => item.EndTime"
+                                               CssClass="form-control form-control-sm" />
+                            </div>
+                        </div>                       
+                    </div>
+
+                </ItemTemplate>
+            </SortableList>
+
+        </div>
+        @* } *@
+    }
+</div>
+
+<div class="offcanvas offcanvas-bottom" tabindex="-1" id="@offcanvasId" data-bs-backdrop="static"
+     data-bs-keyboard="false" style="z-index:9999;">
+
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title">@menuTitle</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+
+    <div class="offcanvas-body d-flex flex-column border-top p-3">
+
+        @if (_selectedItem != null)
+        {
+            <h5 class="fw-bold text-center mb-3">
+                @($"{_selectedItem.Place.DisplayName} @ {FormatTime12Hour(_selectedItem.StartTime)}")
+            </h5>
+        }
+
+        <!-- Autocomplete (Sticky) -->
+        @if (SubMenu == MenuOption.ShiftStarting || SubMenu == MenuOption.ShiftEnding)
+        {
+            <div class="d-flex align-items-stretch justify-content-center gap-2 flex-wrap" style="padding-bottom:15px;">
+
+                <Collapse @ref="collapseTop" class="w-100">
+                    <Card>
+                        <CardBody>
+                            <div class="d-flex align-items-center gap-2" style="width: 100%;">
+
+                                <!-- Shift By container stretches fully -->
+                                <div class="d-flex align-items-center gap-2" style="width: 100%;">
+                                    <label class="form-label mb-0 flex-shrink-0">Shift By:</label>
+
+                                    <Switch Value="timeAdjustmentSign"
+                                            ValueChanged="OnTimeAdjustmentSignChanged"
+                                            ValueExpression="() => timeAdjustmentSign"
+                                            Label="@(timeAdjustmentSign ? "Plus" : "Minus")" />
+                                    <InputNumber Value="timeShift"
+                                                 ValueChanged="@((int newValue) => OnTimeShiftChanged(newValue))"
+                                                 ValueExpression="() => timeShift"
+                                                 class="form-control form-control-sm flex-shrink-0"
+                                                 style="width: 80px;"
+                                                 min="0"
+                                                 step="15" />
+
+                                    <span class="flex-shrink-0 ms-2">min</span>
+
+                                    <Tooltip Title="Increment/decrease time to this place going forward." role="button">
+                                        <i class="bi bi-info-circle text-info" data-bs-toggle="tooltip" @onclick='@(e => ShowInfo(e, "ShiftStarting"))' @onclick:stopPropagation="true"></i>
+                                    </Tooltip>
+                                </div>
+
+                            </div>
+                        </CardBody>
+                    </Card>
+                </Collapse>
+
+                <div class="w-100"></div>
+
+                <div class="d-flex align-items-stretch gap-2">
+                    <Button Type="ButtonType.Button"
+                            Color="ButtonColor.Primary"
+                            @onclick='() => TogglePreview(SubMenu)'>
+                        <i class="bi @(togglePreviewDesc == "Show" ? "bi-eye" : "bi-eye-slash")"></i>
+                        @togglePreviewDesc Preview
+                    </Button>
+                </div>
+
+                <div class="w-100"></div>
+
+                <Collapse @ref="collapseBottom" class="w-100">
+                    <Card>
+                        <CardBody>
+                            <div class="d-flex flex-column gap-2" style="width: 100%; margin-top: -10px !important;">
+                                @{
+                                    DateTime? currentDate = null;
+                                }
+
+                                @foreach (var place in previewPlaces.OrderBy(p => p.StartDate).ThenBy(p => p.StartTime))
+                                {
+                                    if (currentDate != place.StartDate)
+                                    {
+                                        currentDate = place.StartDate;
+                                        <div class="fw-bold text-center mt-2 mb-1">
+                                            @currentDate.Value.ToString("MMMM dd, yyyy")
+                                        </div>
+                                    }
+
+                                    <div class="d-flex align-items-center justify-content-between p-1 border rounded" style="width: 100%;">
+                                        <span>@place.Place.DisplayName</span>
+                                        <span>@FormatTime12Hour(place.StartTime)</span>
+                                    </div>
+                                }
+                            </div>
+                        </CardBody>
+                    </Card>
+                </Collapse>
+
+            </div>
+        }
+
+        else if (SubMenu == MenuOption.ShiftEnding)
+        {
+
+        }
+
+        else if (SubMenu == MenuOption.Adjust && _selectedItem != null)
+        {
+            <div class="d-flex align-items-stretch justify-content-center gap-2">
+
+                <!-- Old Date/Time Box -->
+                <div class="p-3 rounded border custom-border d-flex flex-column justify-content-between" style="min-width: 180px;">
+                    <div>
+                        <label class="form-label mb-1 fw-semibold">Old Date</label>
+                        <div class="form-control form-control-sm bg-transparent">
+                            <label>@_originalItem.StartDate.ToString("MM/dd/yyyy")</label>
+                        </div>
+                    </div>
+
+                    <div class="mt-3">
+                        <label class="form-label mb-1 fw-semibold">Old Time</label>
+                        <div class="form-control form-control-sm bg-transparent">
+                            <label>@DateTime.Today.Add(_originalItem.StartTime).ToString("hh:mm tt")</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Arrow -->
+                <div class="d-flex align-items-center justify-content-center">
+                    <i class="bi bi-arrow-right fs-3 text-muted"></i>
+                </div>
+
+                <!-- New Date/Time Box -->
+                <div class="p-3 rounded border custom-border d-flex flex-column justify-content-between" style="min-width: 180px;">
+                    <div>
+                        <label class="form-label mb-1 fw-semibold">New Date</label>
+                        <InputDate TValue="DateTime"
+                                   Value="_selectedItem.StartDate"
+                                   ValueChanged="v => _selectedItem.StartDate = v"
+                                   ValueExpression="() => _selectedItem.StartDate"
+                                   class="form-control form-control-sm mb-2" />
+                    </div>
+
+                    <div>
+                        <label class="form-label mb-1 fw-semibold">New Time</label>
+                        <InputTimeSpan Value="_selectedItem.StartTime"
+                                       ValueChanged="v => _selectedItem.StartTime = v"
+                                       OnChange="e => OnItemAdjustTime(_selectedItem)"
+                                       CssClass="form-control form-control-sm" />
+                    </div>
+                </div>
+
+            </div>
+        }
+
+    </div>
+
+</div>
+
+<ConfirmDialog @ref="dialog" Id="confirmModal" Style="z-index:9999;" />
+
+@code {
+    [Parameter]
+    public MenuOption? SubMenu { get; set; }
+    [Parameter]
+    public EventCallback<MenuOption?> SubMenuChanged { get; set; }
+    [Parameter]
+    public List<ItineraryAccomodationViewModel> Accomodations { get; set; }
+    [Parameter]
+    public EventCallback<List<ItineraryAccomodationViewModel>> AccomodationsChanged { get; set; }
+    // [Parameter]
+    // public List<PlaceGroupViewModel> GroupedPlaces { get; set; }
+    // [Parameter]
+    // public EventCallback<List<PlaceGroupViewModel>> GroupedPlacesChanged { get; set; }
+    [Parameter]
+    public TimeSpan StartTime { get; set; }
+    [Parameter]
+    public EventCallback<TimeSpan> StartTimeChanged { get; set; }
+    [Parameter]
+    public int TimeIncrement { get; set; }
+    [Parameter]
+    public EventCallback<int> TimeIncrementChanged { get; set; }
+    [Parameter]
+    public EventCallback OnScheduleUpdate { get; set; }
+    private ConfirmDialog dialog = default!;
+    public ItineraryAccomodationViewModel? SwapFirstItem { get; set; }
+    private DotNetObjectReference<AccomodationEditor>? objRef;
+    private DateInputString? startDateInput;
+    private DateInputString? endDateInput;
+    private HashSet<ItineraryAccomodationViewModel> highlightItems = new();
+    private List<ItineraryAccomodationViewModel> previewPlaces = new();
+    private ItineraryAccomodationViewModel? accomodationToDelete;
+    private ItineraryAccomodationViewModel? draggedItem = null;
+    private ItineraryAccomodationViewModel? _openItem;
+    private ItineraryAccomodationViewModel _highlightedItem;
+    private PlaceGroupViewModel? _originalGroup = null;
+    private PlaceGroupViewModel? _selectedGroup = null;
+    private ItineraryAccomodationViewModel? _originalItem = null;
+    private ItineraryAccomodationViewModel? _selectedItem = null;
+    private Collapse collapseTop = default!;
+    private Collapse collapseBottom = default!;
+    private string offcanvasId = "offcanvasAccomodationSchedule";
+    private string togglePreviewDesc = "Show";
+    private string menuTitle = "";
+    private string? draggedFromListName = null;
+    private int? draggedIndex = null;
+    private bool isConfigOpen = false;
+    private bool showDayStartInfo = false;
+    private bool showTimeIncrementInfo = false;
+    private bool timeAdjustmentSign = true;
+    private int startPreviewIndex = 0;
+    private int stopPreviewIndex = 0;
+    private int placeCount = 0;
+    public int timeShift = 60;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        await Task.Yield();
+
+        try
+        {
+            objRef = DotNetObjectReference.Create(this);
+            await JsInterop.RegisterOffcanvasCloseHandler(offcanvasId, objRef);
+            await JsInterop.RegisterOutsideClickHandler(offcanvasId, objRef);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to show collapse: {ex}");
+        }
+    }
+
+    private void ToggleMenu(ItineraryAccomodationViewModel item)
+    {
+        // Open new menu directly, even if another is open
+        _openItem = item;
+    }
+
+    private bool IsMenuOpenForItem(ItineraryAccomodationViewModel item) => _openItem == item;
+
+    private bool menuIsOpen = false;
+
+    [JSInvokable]
+    public async Task CheckIfClickedOutside(string source) //******has to be public******
+    {
+        if (menuIsOpen)
+        {
+            CloseItemMenu();
+            menuIsOpen = false;
+            return;
+        }
+        if (SubMenu is null && _openItem is not null)
+        {
+            menuIsOpen = true;
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnClickOutside(string source) //******has to be public******
+    {
+        if (SubMenu == MenuOption.Swap)
+            return;
+        _selectedItem = null;
+        _originalItem = null;
+        _selectedGroup = null;
+        await SubMenuChanged.InvokeAsync(null);
+        CloseItemMenu();
+    }
+
+    private void CloseItemMenu()
+    {
+        menuIsOpen = false;
+        _openItem = null;
+        SubMenu = null;
+        StateHasChanged();
+    }
+
+    private void ToggleConfig()
+    {
+        isConfigOpen = !isConfigOpen;
+
+        // hide info when closing
+        if (!isConfigOpen)
+        {
+            showDayStartInfo = false;
+            showTimeIncrementInfo = false;
+        }
+    }
+
+    private async Task ShowInfo(MouseEventArgs e, string fieldName)
+    {
+        try
+        {
+
+        }
+        catch (Exception ex)
+        {
+
+        }
+    }
+
+    private async Task OnEditDate()
+    {
+        // GroupedPlaces.FirstOrDefault().DisplayName = "x";
+    }
+
+    private async Task OnItemStartTimeChanged(ItineraryAccomodationViewModel item, TimeSpan? newValue)
+    {
+        item.StartTime = newValue ?? TimeSpan.Zero;
+        // ReorderGroupByTime(group);
+
+        // 1️⃣ Remove focus from the active element
+        await JsInterop.BlurActiveElementAsync();
+
+        await HighlightItemsEffect(item);
+    }
+
+    private async Task HighlightItemsEffect(ItineraryAccomodationViewModel item1, ItineraryAccomodationViewModel? item2 = null)
+    {
+        // 2️⃣ Flash green highlight
+        highlightItems.Add(item1);
+        if (item2 is not null)
+        {
+            highlightItems.Add(item2);
+        }
+        StateHasChanged();
+
+        await Task.Delay(1000);
+
+        highlightItems.Clear();
+
+        // 3️⃣ Set Bootstrap "active" highlight
+        _highlightedItem = item1;
+        StateHasChanged();
+    }
+
+    private async Task OnStartTimeChanged(TimeSpan newValue)
+    {
+        StartTime = newValue;
+        await StartTimeChanged.InvokeAsync(newValue); // This notifies the parent!
+    }
+
+    private async Task OnTimeIncrementChanged(int newTimeIncrement)
+    {
+        TimeIncrement = newTimeIncrement;
+        await TimeIncrementChanged.InvokeAsync(newTimeIncrement); // This notifies the parent!
+    }
+
+    private async Task OnDateChanged(ItineraryAccomodationViewModel item, string field, string newDate)
+    {
+        var parsedDate = DateTime.Parse(newDate);
+        DateTime newStart = item.StartDate;
+        DateTime newEnd = item.EndDate;
+
+        if (field == "StartDate")
+        {
+            newStart = parsedDate;
+
+            // If StartDate >= EndDate → invalid
+            if (newStart >= newEnd)
+            {
+                await ShowDialogInvalidRangeAsync();
+                return;
+            }
+
+            // Check overlap
+            bool overlapExists = Accomodations
+                .Where(g => g != item)
+                .Any(g => newStart < g.EndDate && newEnd > g.StartDate);
+
+            if (overlapExists)
+            {
+                await ShowDialogCannotUpdateDateAsync();
+                return;
+            }
+
+            // Apply changes
+            item.StartDate = newStart;
+        }
+        else if (field == "EndDate")
+        {
+            newEnd = parsedDate;
+
+            // If EndDate <= StartDate → invalid
+            if (newEnd <= newStart)
+            {
+                await ShowDialogInvalidRangeAsync();
+                return;
+            }
+
+            // Check overlap
+            bool overlapExists = Accomodations
+                .Where(g => g != item)
+                .Any(g => newStart < g.EndDate && newEnd > g.StartDate);
+
+            if (overlapExists)
+            {
+                await ShowDialogCannotUpdateDateAsync();
+                return;
+            }
+
+            // Apply changes
+            item.EndDate = newEnd;
+        }
+
+        if (OnScheduleUpdate.HasDelegate)
+            await OnScheduleUpdate.InvokeAsync();
+    }
+
+    private async Task OnRemove(PlaceGroupViewModel sourceGroup, SortableListEventArgs args)
+    {
+        // if (args.OldIndex >= 0 && args.OldIndex < sourceGroup.ItineraryPlaces.Count)
+        // {
+        //     draggedItem = sourceGroup.ItineraryPlaces[args.OldIndex];
+        //     draggedFromListName = args.FromListName;
+        //     var toListName = args.ToListName;
+        //     sourceGroup.ItineraryPlaces.RemoveAt(args.OldIndex);
+        //     var targetDate = DateTime.Parse(toListName);
+        //     var targetGroup = Accomodations.Where(w => w.StartDate == targetDate).FirstOrDefault();
+        //     draggedItem.StartDate = targetDate;
+        //     draggedItem.EndDate = targetDate;
+        //     targetGroup.ItineraryPlaces.Insert(args.NewIndex, draggedItem);
+
+        //     if (sourceGroup.ItineraryPlaces.Count == 0)
+        //     {
+        //         GroupedPlaces.Remove(sourceGroup);
+        //     }
+
+        //     var previousIndex = args.NewIndex - 1;
+        //     TimeSpan? previousTime = (args.NewIndex - 1 >= 0)
+        //         ? targetGroup.ItineraryPlaces[args.NewIndex - 1].StartTime
+        //         : null;
+        //     for (int i = args.NewIndex; i <= targetGroup.ItineraryPlaces.Count - 1; i++)
+        //     {
+        //         var nextItem = (i + 1 < targetGroup.ItineraryPlaces.Count)
+        //            ? targetGroup.ItineraryPlaces[i + 1]
+        //            : null;
+        //         if (nextItem is not null)
+        //         {
+        //             //set next items time to current item
+        //             targetGroup.ItineraryPlaces[i].StartTime = nextItem.StartTime;
+        //             previousTime = nextItem.StartTime;
+        //         }
+        //         else
+        //         {
+        //             //increment time of last item
+        //             var newTime = previousTime.Value.Add(TimeSpan.FromMinutes(TimeIncrement));
+        //             targetGroup.ItineraryPlaces[i].StartTime = newTime;
+        //         }
+        //     }
+        //     await HighlightItemsEffect(draggedItem);
+        // }
+        // draggedIndex = null;
+    }
+
+    private void OnAdd(PlaceGroupViewModel targetGroup, SortableListEventArgs args)
+    {
+        draggedIndex = args.OldIndex;
+    }
+
+    private async Task OnUpdate(PlaceGroupViewModel group, SortableListEventArgs args)
+    {
+        var list = group.ItineraryPlaces;
+        var movedItem = list[args.OldIndex];
+        var replacedItem = list[args.NewIndex];
+        list.RemoveAt(args.OldIndex);
+
+        if (args.NewIndex < list.Count)
+            list.Insert(args.NewIndex, movedItem);
+        else
+            list.Add(movedItem);
+
+        //dragged up
+        if (args.NewIndex < args.OldIndex)
+        {
+            var startingTime = replacedItem.StartTime;
+            var endingTime = movedItem.StartTime;
+
+            //assign new starting time to moved item
+            movedItem.StartTime = startingTime;
+
+            var startIndex = args.NewIndex + 1;
+            var stopIndex = args.OldIndex;
+
+            for (int i = startIndex; i <= stopIndex; i++)
+            {
+                var nextItem = (i + 1 < list.Count)
+                    ? list[i + 1]
+                    : null;
+                if (nextItem is not null)
+                {
+                    if (stopIndex != i)
+                    {
+                        var nextStartTime = nextItem.StartTime;
+                        list[i].StartTime = nextStartTime;
+                    }
+                    else
+                    {
+                        list[i].StartTime = endingTime;
+                    }
+                }
+                else
+                {
+                    list[i].StartTime = endingTime;
+                }
+            }
+        }
+        //dragged down
+        else
+        {
+            var startingTime = movedItem.StartTime;
+            var endingTime = replacedItem.StartTime;
+
+            var startIndex = args.OldIndex + 1;
+            var nextStartTime = list[args.OldIndex].StartTime;
+            list[args.OldIndex].StartTime = startingTime; //assign new starting time to next item on the line
+            var stopIndex = args.NewIndex;
+
+            for (int i = startIndex; i <= stopIndex; i++)
+            {
+                var nextItem = (i + 1 < list.Count)
+                    ? list[i + 1]
+                    : null;
+                if (nextItem is not null)
+                {
+                    if (stopIndex > i)
+                    {
+                        var oldTime = list[i].StartTime;
+                        list[i].StartTime = nextStartTime;
+                        nextStartTime = oldTime;
+                    }
+                    else
+                    {
+                        list[i].StartTime = endingTime;
+                    }
+                }
+                else
+                {
+                    list[i].StartTime = endingTime;
+                }
+            }
+
+        }
+        // await HighlightItemsEffect(movedItem);
+    }
+
+    private async Task RequestDeleteGroup(ItineraryAccomodationViewModel item)
+    {
+        accomodationToDelete = item;
+        await ShowDialogRemoveDateAsync();
+    }
+
+    private async Task ConfirmDeleteGroup()
+    {
+        // if (accomodationToDelete != null)
+        // {
+        //     var index = GroupedPlaces.IndexOf(groupToDelete);
+        //     if (index > 0)
+        //     {
+        //         GroupedPlaces[index - 1].ItineraryPlaces.AddRange(groupToDelete.ItineraryPlaces);
+        //         GroupedPlaces.RemoveAt(index);
+        //     }
+        // }
+    }
+
+    // private void CreateNewGroup(DateTime newDate, List<ItineraryPlaceViewModel> items)
+    // {
+    //     var newPlaceGroup = new PlaceGroupViewModel
+    //     {
+    //         Date = newDate
+    //     };
+
+    //     foreach (var item in items)
+    //     {
+    //         newPlaceGroup.ItineraryPlaces.Add(item);
+    //     }
+
+    //     // Find the correct index to keep the list sorted by Date
+    //     int insertIndex = GroupedPlaces.FindIndex(g => g.Date > newDate);
+
+    //     if (insertIndex == -1)
+    //     {
+    //         // All existing dates are earlier, so append to the end
+    //         GroupedPlaces.Add(newPlaceGroup);
+    //     }
+    //     else
+    //     {
+    //         // Insert at the found position
+    //         GroupedPlaces.Insert(insertIndex, newPlaceGroup);
+    //     }
+    // }
+
+    // private void RemoveFromGroup(PlaceGroupViewModel group, ItineraryPlaceViewModel item)
+    // {
+    //     group.ItineraryPlaces.Remove(item);
+
+    //     if (group.ItineraryPlaces.Count == 0)
+    //     {
+    //         GroupedPlaces.Remove(group);
+    //     }
+    // }
+
+    private async Task TogglePreview(MenuOption? menu)
+    {
+        await collapseTop.ToggleAsync();
+        await collapseBottom.ToggleAsync();
+        togglePreviewDesc = (togglePreviewDesc == "Show") ? "Hide" : "Show";
+    }
+
+    // private void DeleteGroup(PlaceGroupViewModel group)
+    // {
+    //     var index = GroupedPlaces.IndexOf(group);
+
+    //     // Only allow deleting if it's not the first group
+    //     if (index > 0)
+    //     {
+    //         // Transfer places to the previous group
+    //         var previousGroup = GroupedPlaces[index - 1];
+    //         previousGroup.ItineraryPlaces.AddRange(group.ItineraryPlaces);
+
+    //         // Remove the current group
+    //         GroupedPlaces.RemoveAt(index);
+    //     }
+    // }
+
+    private async Task ResetGroupTimes(ItineraryAccomodationViewModel? item)
+    {
+        // if (item == null || group.ItineraryPlaces == null)
+        //     return;
+
+        // var currentTime = StartTime; // TimeSpan
+        // var increment = TimeSpan.FromMinutes(TimeIncrement); // IncrementTime is int
+
+        // foreach (var item in group.ItineraryPlaces)
+        // {
+        //     item.StartTime = currentTime;
+        //     currentTime = currentTime.Add(increment);
+        // }
+    }
+
+    private async Task OnResetGroupTimes(ItineraryAccomodationViewModel? item)
+    {
+        // await ShowDialogResetGroupTimesAsync(item);
+    }
+
+    private async Task OnMenuItemClicked(ItineraryAccomodationViewModel item, MenuOption menu)
+    {
+        // _selectedGroup = group;
+        // _originalGroup = group;
+        _selectedItem = item;
+        // _originalItem = item.Clone();
+        SubMenu = menu;
+        await SubMenuChanged.InvokeAsync(menu);
+        menuTitle = menu.ScreenTitle();
+        if (menu == MenuOption.Swap)
+        {
+            // ✅ Always close menu immediately
+            CloseItemMenu();
+
+            // No swap started yet → select first item
+            if (SwapFirstItem == null)
+            {
+                SwapFirstItem = item;
+                highlightItems.Add(item); // highlight immediately
+                StateHasChanged();
+                return;
+            }
+
+            // User clicked the same item again → cancel swap selection
+            if (SwapFirstItem == item)
+            {
+                await CancelSwap();
+                return;
+            }
+
+            // User clicked a second, different item → perform swap
+            var item1 = SwapFirstItem;
+            var item2 = item;
+
+            await HighlightSwapAsync(item1, item2);
+            await CancelSwap();
+        }
+        else if (menu == MenuOption.Adjust)
+        {
+            CloseItemMenu();
+            await OpenOffcanvasHalfScreen();
+        }
+        else if (menu == MenuOption.ShiftStarting || menu == MenuOption.ShiftEnding)
+        {
+            UpdatePreviewPlaces();
+
+            CloseItemMenu();
+            await OpenOffcanvasHalfScreen();
+            await collapseTop.ShowAsync();
+            await collapseBottom.HideAsync();
+        }
+    }
+
+    private void OnTimeAdjustmentSignChanged(bool newValue)
+    {
+        timeAdjustmentSign = newValue;
+        UpdatePreviewPlaces();
+    }
+
+    private void OnTimeShiftChanged(int newValue)
+    {
+        timeShift = newValue;
+        UpdatePreviewPlaces();
+    }
+
+    private void UpdatePreviewPlaces()
+    {
+        // Ensure preview list is empty
+        previewPlaces.Clear();
+        placeCount = 0;
+        startPreviewIndex = 0;
+        stopPreviewIndex = 0;
+
+        placeCount = _selectedGroup.ItineraryPlaces.Count;
+        if (SubMenu == MenuOption.ShiftStarting)
+        {
+            // startPreviewIndex = _selectedGroup.ItineraryPlaces.IndexOf(_selectedItem);
+            stopPreviewIndex = placeCount;
+        }
+        else if (SubMenu == MenuOption.ShiftEnding)
+        {
+            // stopPreviewIndex = _selectedGroup.ItineraryPlaces.IndexOf(_selectedItem) + 1;
+        }
+
+        if (startPreviewIndex < 0) return; // item not found
+
+        bool outOfDayBounds = false;
+
+        // Assume each ItineraryPlaceViewModel has a StartDate property (DateTime) for the day
+        for (int i = startPreviewIndex; i < stopPreviewIndex; i++)
+        {
+            var originalPlace = _selectedGroup.ItineraryPlaces[i];
+
+            // Calculate increment (positive or negative)
+            var increment = timeAdjustmentSign
+                ? TimeSpan.FromMinutes(timeShift)
+                : TimeSpan.FromMinutes(-timeShift);
+
+            // Combine date + time
+            var originalDateTime = originalPlace.StartDate.Date + originalPlace.StartTime;
+
+            // Add increment
+            var newDateTime = originalDateTime + increment;
+
+            // Detect if it goes to previous or next day
+            if (newDateTime.Date != originalPlace.StartDate.Date)
+            {
+                outOfDayBounds = true;
+            }
+
+            // Create preview item
+            var previewPlace = new ItineraryAccomodationViewModel
+            {
+                Id = originalPlace.Id,
+                Place = originalPlace.Place,
+                StartDate = newDateTime.Date,      // Update date if needed
+                StartTime = newDateTime.TimeOfDay, // Update time portion
+                EndTime = originalPlace.EndTime,
+                Notes = originalPlace.Notes,
+                OldIndex = _selectedGroup.ItineraryPlaces.IndexOf(originalPlace)
+            };
+
+            previewPlaces.Add(previewPlace);
+        }
+
+        if (outOfDayBounds)
+        {
+            // Alert user that some times crossed day boundaries
+            // _ = JS.InvokeVoidAsync("alert", "Warning: Some times moved to the previous or next day.");
+        }
+    }
+
+    private async Task OnItemAdjustTime(ItineraryAccomodationViewModel item)
+    {
+        //set preview
+    }
+
+    public async Task UpdateSchedule()
+    {
+        if (SubMenu == MenuOption.Adjust)
+        {
+            // var targetGroup = GroupedPlaces.Where(w => w.Date == _selectedItem.StartDate).FirstOrDefault();
+
+            // if (targetGroup is null)
+            // {
+            //     CreateNewGroup(_selectedItem.StartDate, new List<ItineraryPlaceViewModel> { _selectedItem });
+            // }
+            // else
+            // {
+            //     targetGroup.ItineraryPlaces.Add(_selectedItem);
+            //     ReorderGroupByTime(targetGroup);
+            // }
+
+            // RemoveFromGroup(_originalGroup, _selectedItem);
+
+            // await HighlightItemsEffect(_selectedItem);
+        }
+        else if (SubMenu == MenuOption.ShiftStarting || SubMenu == MenuOption.ShiftEnding)
+        {
+            // var dates = previewPlaces.Select(s => s.StartDate).Distinct();
+            // var targetGroups = GroupedPlaces.Where(w => dates.Contains(w.Date)).ToList();
+            // var sourceGroup = GroupedPlaces.Where(w => w.Date == _selectedItem.StartDate).FirstOrDefault();
+
+            // //Move places to other groups
+            // foreach (var targetGroup in targetGroups.Where(w => w.Date != _selectedItem.StartDate))
+            // {
+            //     var placesToRemove = new List<ItineraryPlaceViewModel>();
+
+            //     foreach (var item in previewPlaces.Where(w => w.StartDate == targetGroup.Date))
+            //     {
+            //         var timeSlotExists = targetGroup.ItineraryPlaces.Any(s => s.StartTime == item.StartTime);
+            //         if (timeSlotExists)
+            //         {
+            //             //message time slot exists, cannot do change
+            //             await ShowDialogCannotMovePlaceAsync();
+            //             return;
+            //         }
+            //         else
+            //         {
+            //             targetGroup.ItineraryPlaces.Add(item);
+
+            //             var actualItem = sourceGroup.ItineraryPlaces.Where((place, index) => item.OldIndex == index).FirstOrDefault();
+            //             placesToRemove.Add(actualItem);
+            //             // sourceGroup.ItineraryPlaces.RemoveAt(item.OldIndex);
+            //         }
+            //     }
+
+            //     // remove them
+            //     foreach (var place in placesToRemove)
+            //     {
+            //         sourceGroup.ItineraryPlaces.Remove(place);
+            //     }
+            //     ReorderGroupByTime(targetGroup);
+            // }
+
+            // if (sourceGroup.ItineraryPlaces.Count == 0)
+            // {
+            //     GroupedPlaces.Remove(sourceGroup);
+            // }
+
+            // var currentGroup = targetGroups.Where(w => w.Date == _selectedItem.StartDate).FirstOrDefault();
+
+            // //Updates to current group
+            // if (currentGroup is not null)
+            // {
+            //     List<TimeSpan> currentUnchangedTimes = [];
+
+            //     //add remaining times
+            //     if (SubMenu == MenuOption.ShiftEnding)
+            //     {
+            //         for (int i = stopPreviewIndex; i < placeCount; i++)
+            //         {
+            //             var originalTime = currentGroup.ItineraryPlaces[i].StartDate + currentGroup.ItineraryPlaces[i].StartTime;
+            //             currentUnchangedTimes.Add(originalTime.TimeOfDay);
+            //         }
+            //     }
+            //     if (SubMenu == MenuOption.ShiftStarting)
+            //     {
+            //         for (int i = 0; i < startPreviewIndex; i++)
+            //         {
+            //             var originalTime = currentGroup.ItineraryPlaces[i].StartDate + currentGroup.ItineraryPlaces[i].StartTime;
+            //             currentUnchangedTimes.Add(originalTime.TimeOfDay);
+            //         }
+            //     }
+
+            //     //check if any time slot exists before proceeding
+            //     foreach (var item in previewPlaces)
+            //     {
+            //         var timeSlotExists = currentUnchangedTimes.Any(time => time == item.StartTime);
+            //         if (timeSlotExists)
+            //         {
+            //             await ShowDialogCannotMovePlaceAsync();
+            //             return;
+            //         }
+            //     }
+
+            //     //update times
+            //     for (int i = startPreviewIndex; i < stopPreviewIndex; i++)
+            //     {
+            //         var increment = timeAdjustmentSign
+            //         ? TimeSpan.FromMinutes(timeShift)
+            //         : TimeSpan.FromMinutes(-timeShift);
+
+            //         var originalTime = currentGroup.ItineraryPlaces[i].StartDate + currentGroup.ItineraryPlaces[i].StartTime;
+            //         var newTime = (originalTime + increment).TimeOfDay;
+
+            //         currentGroup.ItineraryPlaces[i].StartTime = newTime;
+            //     }
+
+            //     ReorderGroupByTime(currentGroup);
+            // }
+            // await ResetShiftControl();
+        }
+
+        await CloseOffcanvas();
+    }
+
+    public async Task ResetShiftControl()
+    {
+        previewPlaces.Clear();
+        togglePreviewDesc = "Show";
+    }
+
+    public async Task CancelSwap()
+    {
+        SubMenu = null;
+        SwapFirstItem = null;
+        highlightItems.Clear();
+        await SubMenuChanged.InvokeAsync(null);
+        StateHasChanged();
+    }
+
+    private async Task HighlightSwapAsync(ItineraryAccomodationViewModel item1, ItineraryAccomodationViewModel item2)
+    {
+        // // Get the groups for each item
+        // var group1 = GroupedPlaces.FirstOrDefault(g => g.ItineraryPlaces.Contains(item1));
+        // var group2 = GroupedPlaces.FirstOrDefault(g => g.ItineraryPlaces.Contains(item2));
+
+        // if (group1 == null || group2 == null)
+        //     return;
+
+        // // Swap dates + times
+        // var tempDate = item1.StartDate;
+        // var tempTime = item1.StartTime;
+
+        // item1.StartDate = item2.StartDate;
+        // item1.StartTime = item2.StartTime;
+
+        // item2.StartDate = tempDate;
+        // item2.StartTime = tempTime;
+
+        // // Move to correct group lists
+        // group1.ItineraryPlaces.Remove(item1);
+        // group2.ItineraryPlaces.Remove(item2);
+
+        // group1.ItineraryPlaces.Add(item2);
+        // group2.ItineraryPlaces.Add(item1);
+
+        // // Sort inside each group by time
+        // group1.ItineraryPlaces = group1.ItineraryPlaces
+        //     .OrderBy(p => p.StartTime)
+        //     .ToList();
+
+        // group2.ItineraryPlaces = group2.ItineraryPlaces
+        //     .OrderBy(p => p.StartTime)
+        //     .ToList();
+
+        // await HighlightItemsEffect(item1, item2);
+    }
+
+    // private PlaceGroupViewModel GetGroupForItem(ItineraryPlaceViewModel item)
+    // {
+    //      return GroupedPlaces.First(g => g.ItineraryPlaces.Contains(item));
+    // }
+
+    private void ReorderGroupByTime(PlaceGroupViewModel group)
+    {
+        group.ItineraryPlaces = group.ItineraryPlaces
+            .OrderBy(p => p.StartTime)
+            .ToList();
+    }
+
+    private async Task CloseOffcanvas()
+    {
+        await JsInterop.CloseOffcanvas(offcanvasId);
+        StateHasChanged();
+    }
+
+    private async Task OpenOffcanvasHalfScreen()
+    {
+        StateHasChanged();
+        await JsInterop.OpenOffcanvasHalfScreen(offcanvasId);
+    }
+
+    private async Task ShowDialogRemoveDateAsync()
+    {
+        var options = new ConfirmDialogOptions
+        {
+            IsVerticallyCentered = true,
+            YesButtonColor = ButtonColor.Danger
+
+        };
+        var confirmation = await dialog.ShowAsync(
+            title: "Remove Date?",
+            message1: "Are you sure you want to remove date? Places do not get deleted; they will get shifted to the day before on the itinerary.",
+            confirmDialogOptions: options);
+
+        if (confirmation)
+        {
+            await ConfirmDeleteGroup();
+        }
+        else
+        {
+
+        }
+        accomodationToDelete = null;
+    }
+
+    private async Task ShowDialogCannotAddDateAsync()
+    {
+        var options = new ConfirmDialogOptions
+        {
+            IsVerticallyCentered = true,
+            NoButtonColor = ButtonColor.None,
+            NoButtonText = "",
+            YesButtonText = "Okay"
+        };
+        var confirmation = await dialog.ShowAsync(
+            title: "Action cancelled.",
+            message1: "The next itinerary group is already next day.",
+            confirmDialogOptions: options);
+
+        if (confirmation)
+        {
+        }
+        else
+        {
+
+        }
+    }
+
+    private async Task ShowDialogCannotMovePlaceAsync()
+    {
+        var options = new ConfirmDialogOptions
+        {
+            IsVerticallyCentered = true,
+            NoButtonColor = ButtonColor.None,
+            NoButtonText = "",
+            YesButtonText = "Okay"
+        };
+        var confirmation = await dialog.ShowAsync(
+            title: "Cannot shift schedule.",
+            message1: "One or more places overlap time slots on the same day. Unable to make changes.",
+            confirmDialogOptions: options);
+
+        if (confirmation)
+        {
+        }
+        else
+        {
+
+        }
+    }
+
+    private async Task ShowDialogCannotUpdateDateAsync()
+    {
+        var options = new ConfirmDialogOptions
+        {
+            IsVerticallyCentered = true,
+            NoButtonColor = ButtonColor.None,
+            NoButtonText = "",
+            YesButtonText = "Okay"
+        };
+        var confirmation = await dialog.ShowAsync(
+            title: "Action cancelled.",
+            message1: "New date range overlaps with another accomodation. Cannot have overlapping dates.",
+            confirmDialogOptions: options);
+
+        if (confirmation)
+        {
+        }
+        else
+        {
+
+        }
+    }
+
+    private async Task ShowDialogInvalidRangeAsync()
+    {
+        var options = new ConfirmDialogOptions
+        {
+            IsVerticallyCentered = true,
+            NoButtonColor = ButtonColor.None,
+            NoButtonText = "",
+            YesButtonText = "Okay"
+        };
+        await dialog.ShowAsync(
+            title: "Action cancelled.",
+            message1: "Start date cannot be greater than end date. Invalid date range.",
+            confirmDialogOptions: options);
+        // var confirmation = await Dialog.ShowAsync(
+        //     title: "Action cancelled.",
+        //     message1: "Start date cannot be greater than end date. Invalid date range.",
+        //     confirmDialogOptions: options);
+
+        // if (confirmation)
+        // {
+        // }
+        // else
+        // {
+
+        // }
+    }
+
+    // private async Task ShowDialogResetGroupTimesAsync(ItineraryPlaceViewModel? item)
+    // {
+    //     var options = new ConfirmDialogOptions
+    //     {
+    //         IsVerticallyCentered = true,
+    //         YesButtonColor = ButtonColor.Danger
+
+    //     };
+    //     var confirmation = await Dialog.ShowAsync(
+    //         title: "Reset Times?",
+    //         message1: $"Are you sure you want to reset times for {item.StartDate.Date.ToShortDateString()}. Time start at {FormatTime12Hour(StartTime)} and increments by {TimeIncrement} minutes.",
+    //         confirmDialogOptions: options);
+
+    //     if (confirmation)
+    //     {
+    //         await ResetGroupTimes(item);
+    //     }
+    //     else
+    //     {
+
+    //     }
+    // }
+
+    // public string FormatTime12Hour(TimeSpan time)
+    // {
+    //     DateTime dateTime = DateTime.Today.Add(time);
+    //     return dateTime.ToString("h:mm tt");
+    // }
+}

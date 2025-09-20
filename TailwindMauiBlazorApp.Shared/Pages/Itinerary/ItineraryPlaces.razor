@@ -1,0 +1,2058 @@
+﻿@page "/itinerary-places/{ItineraryId:int}"
+@using BlazorBootstrap
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.Extensions.Configuration
+@using TailwindMauiBlazorApp.Core.Data
+@using TailwindMauiBlazorApp.Core.Models.Enums
+@using TailwindMauiBlazorApp.Shared.Components.Reservations
+@using TailwindMauiBlazorApp.Shared.Helpers
+@using static TailwindMauiBlazorApp.Shared.Helpers.DateHelper
+@* @using TailwindMauiBlazorApp.Core.Models *@
+@using TailwindMauiBlazorApp.Core.Models.Entities
+@* @using TailwindMauiBlazorApp.Shared.DTOs.GoogleAPIs *@
+@using TailwindMauiBlazorApp.Shared.Components
+@using TailwindMauiBlazorApp.Shared.Layout
+@using TailwindMauiBlazorApp.Shared.Models
+@using TailwindMauiBlazorApp.Shared.Models.Enums
+@using TailwindMauiBlazorApp.Shared.Models.ViewModels
+@using TailwindMauiBlazorApp.Shared.Services
+@* @using TailwindMauiBlazorApp.Shared.Models.Enums *@
+@inject AppDbContext db
+@* @inject HttpClient Http *@
+@* @inject NavigationManager Navigation *@
+@inject JsInterop JsInterop
+@* @inject IJSRuntime JS *@
+@inject IConfiguration Configuration
+@inject IIItineraryService ItineraryService
+@inject IIItineraryAccomodationService ItineraryAccomodationService
+@inject IIItineraryPlaceService ItineraryPlaceService
+@inject IIPlaceService PlaceService
+@inject NavigationManager Nav
+@inject AuthenticationStateProvider AuthStateProvider
+@implements IAsyncDisposable
+@attribute [Authorize]
+
+@if (_scriptLoadFailed)
+{
+    <div class="center-text p-4">Could not load data.</div>
+}
+else if (!_scriptsLoaded)
+{
+    <div class="center-text p-4">Loading itinerary details...</div>
+}
+else
+{
+
+}
+
+<div id="markerPopup"></div>
+
+
+<div class="floatingItineraryName">
+    @itinerary.Name
+</div>
+
+<div id="@globeId" class="globeFixed"></div>
+
+<!-- Button container same offset, so button is inside globe area -->
+<div style="position: fixed; top: 50px; left: 0; width: 100%; height: calc(50vh - 50px); pointer-events: none; z-index: 1001;">
+    <Button class="btn btn-secondary  rounded-circle d-flex align-items-center justify-content-center"
+            style="
+                width: 2.5rem;
+                height: 2.5rem;
+                position: absolute;
+                top: 1.0rem;
+                right: 0.5rem;
+                pointer-events: auto;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.3);"
+            @onclick="FitGlobe">
+        <i class="bi bi-arrows-angle-contract"></i>
+    </Button>
+</div>
+
+<!-- Search button hovering bottom right -->
+<Button class="btn btn-primary rounded-circle d-flex align-items-center justify-content-center"
+        style="
+            width: 2.5rem;
+            height: 2.5rem;
+            position: fixed;
+            right: 0.5rem;
+            top: calc(50vh - 3.5rem); /* just above the bottom edge of the globe */
+            z-index: 1001;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);"
+        @onclick="() => OpenScreen(MenuOption.Places)">
+
+    <i class="bi bi-search"></i>
+</Button>
+
+@* === FIXED SEARCH BAR === *@
+<div class="d-flex justify-content-end align-items-center"
+     style="
+        position: fixed;
+        top: 50vh;
+        left: 0;
+        width: 100%;
+        z-index: 1000;">
+
+    <div class="d-flex align-items-center position-fixed w-100 pt-4 pe-3 adjust-for-sidebar-lg"
+         style="top: calc(50vh - 1rem); z-index: 1000;">
+
+        <button class="scroll-arrow me-2 @(IsAtStart ? "disabled-arrow" : "active-arrow")"
+                @onclick="() => ScrollButtons(-1)"
+                disabled="@IsAtStart">
+            <i class="bi bi-chevron-left"></i>
+        </button>
+
+        <div id="dragScrollContainer"
+             class="scroll-container flex-grow-1"
+             @onscroll="OnScroll"
+             style="white-space: nowrap; overflow-x: auto; position: relative; scrollbar-width:none;">
+            @if (itinerary is not null && itinerary.ItineraryPlaces.Count > 0)
+            {
+                @foreach (var button in dateButtons.OrderByDescending(b => b == "ALL") // ALL goes first
+                            .ThenBy(b => b == "ALL" ? DateTime.MinValue : DateTime.Parse(b))) // rest chronologically
+                {
+                    var displayText = button == "ALL" ? "ALL" : DateTime.Parse(button).ToString("%M/%d/yy");
+
+                    string dayColor = "#999999"; // fallback color
+                    if (button != "ALL")
+                    {
+                        var date = DateTime.Parse(button);
+                        var dayName = DaysOfWeek[(int)date.DayOfWeek];
+                        dayColor = DayColors.ContainsKey(dayName) ? DayColors[dayName] : "#999999";
+                    }
+
+                    // Determine button style based on selection
+                    string selectedClass = selectedButton == button ? "selected" : "";
+
+                    <button class="btn date-button @selectedClass me-2 mb-1 px-2 py-1 smal"
+                            style="font-size: 0.75rem;" @onclick="() => FitMap(button)">
+                        <i class="bi bi-geo-alt-fill" style="color:@dayColor"></i>
+                        @displayText
+                    </button>
+                }
+            }
+            else
+            {
+                <div class="d-flex justify-content-center">
+                    <button class="btn btn-sm btn-success" @onclick="() => OpenScreen(MenuOption.Places)">
+                        <i class="bi bi-geo-alt"></i>  Search Destination
+                    </button>
+                </div>
+            }
+        </div>
+
+        <button class="scroll-arrow ms-2 @(IsAtEnd ? "disabled-arrow" : "active-arrow")"
+                @onclick="() => ScrollButtons(1)"
+                disabled="@IsAtEnd">
+            <i class="bi bi-chevron-right"></i>
+        </button>
+
+    </div>
+
+    @* === MAIN CONTENT === *@
+    @if (itinerary is not null)
+    {
+        <div style="padding: 1rem;">
+            <div class="details-container" style="margin-top:30px;">
+                @if (itinerary.ItineraryPlaces.Any())
+                {
+                    <ItineraryEdit ItineraryId="@ItineraryId"
+                                   StartDate="@itinerary.StartDate"
+                                   EndDate="@itinerary.EndDate"
+                                   Accomodations="@accomodations"
+                                   Reservations="@reservations"
+                                   OnItineraryNameChanged="UpdateItineraryName"
+                                   OnOpenScreen="OpenScreen"
+                                   OnOpenAddReservation="HandleOpenAddReservation"
+                                   OnShowAlert="HandleShowAlert" />
+                }
+            </div>
+        </div>
+    }
+
+    <!-- Floating round menu button -->
+    <div style="position: fixed; bottom: 4rem; right: 0.7rem; z-index: 1001; pointer-events: auto;">
+        <div class="dropdown-wrapper" style="position: relative; width: 40px; height: 40px;">
+
+            <!-- Round floating button -->
+            <button class="btn btn-primary rounded-circle d-flex align-items-center justify-content-center p-0"
+                    style="width: 40px; height: 40px; box-shadow: 0 2px 8px rgba(0,0,0,0.3);"
+                    @onclick="ToggleMainMenu">
+                <i class="bi bi-list" style="font-size: 1.2rem;"></i>
+            </button>
+
+            <!-- Dropdown menu opening UP from the button -->
+            @if (mainMenuOpen)
+            {
+                <div class="menu-dropdown shadow border rounded bg-white"
+                     style="
+                                                width: 200px;
+                                                position: absolute;
+                                                bottom: 0;
+                                                right: 100%;
+                                                margin-right: 0.5rem;
+                                                transform: translateY(-4px);
+                                                z-index: 9999;
+                                                padding: 0.25rem 0;
+                                                box-sizing: border-box;">
+
+                    <ul class="list-unstyled mb-0">
+                        <li>
+                            <button class="dropdown-item w-100 text-start"
+                                    @onclick='() => OnMainMenuItemClick(MenuOption.Places)'>
+                                <i class="bi bi-geo-alt-fill me-1"></i> Add Place
+                            </button>
+                        </li>
+
+                        @if (places.Count() > 0)
+                        {
+
+                            <!-- Schedule main label -->
+                            <li class="ps-3 pt-1 pb-1 w-100 text-start text-muted">
+                                <i class="fa-solid fa-calendar-days" style="margin-left:1.5px; margin-right:4.5px;"></i> Schedule
+                            </li>
+                            <li>
+                                <button class="dropdown-item w-100 text-start"
+                                        @onclick='() => OnMainMenuItemClick(MenuOption.ScheduleViewer)'>
+                                    <i class="fa-solid fa-eye me-1" style="padding-left:15px;"></i> View
+                                </button>
+                            </li>
+                            <li>
+                                <button class="dropdown-item w-100 text-start"
+                                        @onclick='() => OnMainMenuItemClick(MenuOption.ScheduleEditor)'>
+                                    <i class="fa-solid fa-pencil me-1" style="padding-left:15px;"></i>
+                                    <span style="padding-left:1px;">Edit</span>
+                                </button>
+                            </li>
+                        }
+
+                        <li>
+                            <button class="dropdown-item w-100 text-start"
+                                    @onclick='() => OnMainMenuItemClick(MenuOption.Reservations)'>
+                                <i class="bi bi-qr-code me-1"></i> Reservations
+                            </button>
+                        </li>
+
+                        <li>
+                            <button class="dropdown-item w-100 text-start"
+                                    @onclick='() => OnMainMenuItemClick(MenuOption.Accomodations)'>
+                                <i class="fa-solid fa-bed me-1" style="font-size: 0.85rem;"></i> Accomodations
+                            </button>
+                        </li>
+
+                        <li>
+                            <button class="dropdown-item w-100 text-start"
+                                    @onclick='() => OnMainMenuItemClick(MenuOption.Flights)'>
+                                <i class="bi bi-airplane-fill me-1"></i> Flights
+                            </button>
+                        </li>
+
+                        <li>
+                            <button class="dropdown-item w-100 text-start"
+                                    @onclick='() => OnMainMenuItemClick(MenuOption.Transportation)'>
+                                <i class="fa-solid fa-car me-1"></i>
+                                <i class="fa-solid fa-bus me-1"></i>
+                                <i class="fa-solid fa-train me-1"></i>
+                                <i class="fa-solid fa-ship"></i>
+                                <i class="fa-solid fa-bicycle me-1"></i>
+                            </button>
+                        </li>
+
+                        <li>
+                            <button class="dropdown-item w-100 text-start"
+                                    @onclick='() => OnMainMenuItemClick(MenuOption.Expenses)'>
+                                <i class="bi bi-currency-dollar me-1"></i> Expenses
+                            </button>
+                        </li>
+
+                        <li>
+                            <button class="dropdown-item w-100 text-start"
+                                    @onclick='() => OnMainMenuItemClick(MenuOption.Checklists)'>
+                                <i class="bi bi-list-check me-1"></i> Checklists
+                            </button>
+                        </li>
+
+                        <li>
+                            <button class="dropdown-item w-100 text-start"
+                                    @onclick='() => OnMainMenuItemClick(MenuOption.Notes)'>
+                                <i class="bi bi-sticky-fill me-1"></i> Notes
+                            </button>
+                        </li>
+
+                        <li><hr class="dropdown-divider my-1"></li>
+
+                        <li>
+                            <button class="dropdown-item w-100 text-start"
+                                    @onclick='() => OnMainMenuItemClick(MenuOption.Delete)'>
+                                <i class="bi bi-trash-fill me-1"></i> Delete
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<div class="offcanvas offcanvas-bottom" tabindex="-1" id="@offcanvasId" data-bs-backdrop="static"
+     data-bs-keyboard="false">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title">@offCanvasTitle</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+
+    @* <div class="d-flex justify-content-end gap-2 p-2 border-top bg-white sticky-bottom"/>  *@
+    <div class="offcanvas-body d-flex flex-column border-top p-0">
+
+        <!-- Autocomplete (Sticky) -->
+        @* @if (step == 1) *@
+        @if (_mainMenu == MenuOption.Places)
+        {
+            <div id="autocompleteContainer" class=" border-bottom p-2" style="position: sticky; top: 0; z-index: 1;"></div>
+
+            @if (!string.IsNullOrEmpty(duplicatePlaceMessage))
+            {
+                <div class="alert alert-warning mb-0">@duplicatePlaceMessage</div>
+            }
+
+            <!-- Scrollable list -->
+            <div class="flex-grow-1 overflow-auto p-2" style="padding-bottom:55px !important;">
+                @if (addToSavedPlaces)
+                {
+                    if (savedPlaces.Count() > 0)
+                    {
+                        <h5>Places In Saved List:</h5>
+                    }
+                    else
+                    {
+                        <Alert Color="AlertColor.Warning">No places in saved list yet!</Alert>
+                    }
+                    <ul class="list-group">
+                        @foreach (var item in savedPlaces.ToList())
+                        {
+                            <li class="list-group-item d-flex align-items-center justify-content-between p-2">
+                                <div class="flex-grow-1 overflow-hidden" style="min-width: 0;">
+                                    <span class="text-truncate" title="@item.Place.DisplayName" style="display: block;">
+                                        @item.Place.DisplayName
+                                    </span>
+                                </div>
+                                <button class="btn btn-sm btn-danger ms-2 flex-shrink-0" @onclick="() => RemoveItem(item)">X</button>
+                            </li>
+                        }
+                    </ul>
+                }
+                else
+                {
+                    if (places.Count() > 0)
+                    {
+                        <h5>Places In Itinerary:</h5>
+                    }
+                    else
+                    {
+                        <Alert Color="AlertColor.Warning">No places added yet!</Alert>
+                    }
+                    <ul class="list-group">
+                        @foreach (var item in places.ToList())
+                        {
+                            <li class="list-group-item d-flex align-items-center justify-content-between p-2">
+                                <div class="flex-grow-1 overflow-hidden" style="min-width: 0;">
+                                    <span class="text-truncate" title="@item.Place.DisplayName" style="display: block;">
+                                        @item.Place.DisplayName
+                                    </span>
+                                </div>
+                                <button class="btn btn-sm btn-danger ms-2 flex-shrink-0" @onclick="() => ShowDialogDeleteDuplicatePlacesAsync(item)">X</button>
+                            </li>
+                        }
+                    </ul>
+                }
+
+            </div>
+        }
+
+        @if (_mainMenu == MenuOption.Accomodations)
+        {
+            <div id="autocompleteContainer" class=" border-bottom p-2" style="position: sticky; top: 0; z-index: 1;"></div>
+
+            @if (!string.IsNullOrEmpty(duplicatePlaceMessage))
+            {
+                <div class="alert alert-warning mb-0">@duplicatePlaceMessage</div>
+            }
+
+            <!-- Scrollable list -->
+            <div class="flex-grow-1 overflow-auto p-2" style="padding-bottom:55px !important;">
+                @if (accomodations.Count() > 0)
+                {
+                    <h5>Accomodations in Itinerary:</h5>
+                }
+                else
+                {
+                    <Alert Color="AlertColor.Warning">No accomodations added yet!</Alert>
+                    @if (places.Where(w => w.Place.Types.Contains("lodging")).Count() > 0)
+                    {
+                        <div class="ps-1 pt-1 pb-1">
+                            <em>Add Suggested:</em>
+                        </div>
+
+                    }
+                    @foreach (var item in places.Where(w => w.Place.Types.Contains("lodging")).OrderBy(o => o.Place.DisplayName).ToList())
+                    {
+                        <li class="list-group-item d-flex align-items-center justify-content-between p-2">
+                            <div class="flex-grow-1 overflow-hidden" style="min-width: 0;">
+                                <span class="text-truncate" title="@item.Place.DisplayName" style="display: block;">
+                                    @item.Place.DisplayName
+                                </span>
+                            </div>
+                            <button class="btn btn-sm btn-success ms-2 flex-shrink-0" @onclick="() => AddAccomodation(item)">Add</button>
+                        </li>
+                    }
+                }
+                <ul class="list-group">
+                    @foreach (var item in accomodations.OrderBy(o => o.StartDate).ToList())
+                    {
+                        <li class="list-group-item d-flex align-items-center justify-content-between p-2">
+                            <div class="flex-grow-1 overflow-hidden" style="min-width: 0;">
+                                <span class="text-truncate" title="@item.Place.DisplayName" style="display: block;">
+                                    @item.Place.DisplayName
+                                </span>
+                            </div>
+                            <button class="btn btn-sm btn-danger ms-2 flex-shrink-0" @onclick="() => RemoveAccomodation(item)">X</button>
+                        </li>
+                    }
+                </ul>
+            </div>
+        }
+        else if (_mainMenu == MenuOption.AccomodationEditor)
+        {
+            @if (itinerary is not null)
+            {
+                <div class="flex-grow-1 overflow-auto p-2">
+                    <AccomodationEditor @ref="accomodationEditorRef"
+                                        @bind-SubMenu="_subMenu"
+                                        @bind-StartTime="itinerary.ConfigStartTime"
+                                        @bind-TimeIncrement="itinerary.ConfigTimeIncrement"
+                                        @bind-Accomodations="accomodations"
+                                        OnScheduleUpdate="HandleAccomodationsUpdate" />
+                </div>
+            }
+        }
+
+        @if (_mainMenu == MenuOption.Reservations)
+        {
+            @if (itinerary is not null)
+            {
+                <div class="flex-grow-1 overflow-auto p-2">
+                    <ReservationListViewer @ref="reservationListViewerRef"
+                                           @bind-Reservations="reservations"
+                                           ItineraryId="@ItineraryId" />
+                </div>
+            }
+        }
+        else if (_mainMenu == MenuOption.ScheduleEditor)
+        @* else if (step == 2) *@
+        {
+            @if (itinerary is not null)
+            {
+                <div class="flex-grow-1 overflow-auto p-2">
+                    <ItineraryEditor @ref="editorRef"
+                                     Dialog="dialog"
+                                     @bind-SubMenu="_subMenu"
+                                     @bind-StartTime="itinerary.ConfigStartTime"
+                                     @bind-TimeIncrement="itinerary.ConfigTimeIncrement"
+                                     @bind-GroupedPlaces="groupedPlaces"
+                                     @bind-SavedPlaces="savedPlaces"
+                                     OnPlaceDeleted="HandlePlaceDeleted"
+                                     OnSaveForLater="HandleSaveForLater"
+                                     OnScheduleUpdate="HandleScheduleUpdate" />
+                    @* @bind-SwapFirstItem="_swapFirstItem" *@
+                </div>
+            }
+        }
+        @* else if (step == 3) *@
+        else if (_mainMenu == MenuOption.ScheduleCardsViewer)
+        {
+            <div class="flex-grow-1 overflow-hidden d-flex">
+                <ItineraryCardViewer @bind-Group="selectedGroup" />
+            </div>
+        }
+        else if (_mainMenu == MenuOption.ScheduleViewer)
+        {
+            <div class="flex-grow-1 overflow-auto p-2">
+                <ItineraryViewer @bind-GroupedPlaces="groupedPlaces" />
+            </div>
+        }
+        else
+        {
+
+        }
+        @*   else if (step == 4)
+        {
+            <div class="flex-grow-1 overflow-auto p-2">Step 4 content</div>
+        } *@
+
+        <!-- Fixed Bottom Buttons -->
+        <div class="d-flex align-items-center gap-2 bottom-button-bar">
+            @if (_mainMenu == MenuOption.Places && places.Count > 0)
+            {
+                <Switch @bind-Value="addToSavedPlaces" Label="Add to 'Saved List'" Class="muted-switch" />
+
+                <div class="ms-auto d-flex gap-2">
+                    <button class="btn btn-sm btn-primary" @onclick='() => OpenScreen(MenuOption.ScheduleEditor)'>
+                        Edit Schedule <i class="bi bi-caret-right-fill"></i>
+                    </button>
+                </div>
+            }
+            else if (_mainMenu == MenuOption.Accomodations && accomodations.Count > 0)
+            {
+                <div class="ms-auto d-flex gap-2">
+                    <button class="btn btn-sm btn-primary" @onclick='() => OpenScreen(MenuOption.AccomodationEditor)'>
+                        Edit Accomodations <i class="bi bi-caret-right-fill"></i>
+                    </button>
+                </div>
+            }
+            else if (_mainMenu == MenuOption.ScheduleEditor)
+            {
+                if (_subMenu is null)
+                {
+                    <div class="ms-auto d-flex gap-2">
+                        <button class="btn btn-sm btn-primary" @onclick="() => OpenScreen(MenuOption.Places)">
+                            <i class="bi bi-caret-left-fill"></i> Add Place
+                        </button>
+                    </div>
+                    @*  <button class="btn btn-sm btn-success" @onclick="SaveItinerary">
+                        Save <i class="bi bi-check-lg"></i>
+                    </button> *@
+                }
+                else if (_subMenu == MenuOption.Adjust)
+                {
+                    <div class="ms-auto d-flex gap-2">
+                        <button class="btn btn-sm btn-success" @onclick="UpdateSchedule">
+                            Adjust Schedule <i class="bi bi-check-lg"></i>
+                        </button>
+                    </div>
+                }
+                else if (_subMenu == MenuOption.ShiftStarting || _subMenu == MenuOption.ShiftEnding)
+                {
+                    <div class="ms-auto d-flex gap-2">
+                        <button class="btn btn-sm btn-success" @onclick="UpdateSchedule">
+                            Shift Schedule <i class="bi bi-check-lg"></i>
+                        </button>
+                    </div>
+                }
+                else if (_subMenu == MenuOption.Swap)
+                {
+                    <div class="ms-auto d-flex gap-2">
+                        <button class="btn btn-sm btn-secondary" @onclick="CancelSwap">
+                            <i class="bi bi-x-circle"></i> Cancel Swap
+                        </button>
+                    </div>
+                }
+                else if (_subMenu == MenuOption.Move)
+                {
+                    @*  <div class="ms-auto d-flex gap-2">
+                        <button class="btn btn-sm btn-success" @onclick="UpdateSchedule">
+                            Move Now<i class="bi bi-check-lg"></i>
+                        </button>
+                    </div> *@
+                    <div class="ms-auto d-flex gap-2">
+                        <button class="btn btn-sm btn-secondary" @onclick="CancelMove">
+                            <i class="bi bi-x-circle"></i> Cancel Move
+                        </button>
+                    </div>
+                }
+                else if (_subMenu == MenuOption.EditDetails)
+                {
+                    //FILL WITH EMPTY DIV
+
+                    @* <button class="btn btn-sm btn-primary" @onclick="() => OpenScreen(MenuOption.Places)">
+                        <i class="bi bi-caret-left-fill"></i> Add Place
+                    </button> *@
+                    @*  <button class="btn btn-sm btn-success" @onclick="SaveItinerary">
+                        Save <i class="bi bi-check-lg"></i>
+                    </button> *@
+                }
+                else if (_subMenu == MenuOption.Remove)
+                {
+                    <div class="ms-auto d-flex gap-2">
+                        <button class="btn btn-sm btn-primary" @onclick="() => OpenScreen(MenuOption.Places)">
+                            <i class="bi bi-caret-left-fill"></i> Add Place
+                        </button>
+                    </div>
+                    @*  <button class="btn btn-sm btn-success" @onclick="SaveItinerary">
+                        Save <i class="bi bi-check-lg"></i>
+                    </button> *@
+                }
+                else if (_subMenu == MenuOption.SavedItemEditMode || _subMenu == MenuOption.SaveForLater)
+                {
+                    <div class="ms-auto d-flex gap-2">
+                        <button class="btn btn-sm btn-primary" @onclick="() => OpenScreen(MenuOption.Places)">
+                            <i class="bi bi-caret-left-fill"></i> Add Place
+                        </button>
+                    </div>
+                    @*  <button class="btn btn-sm btn-success" @onclick="SaveItinerary">
+                        Save <i class="bi bi-check-lg"></i>
+                    </button> *@
+                }
+            }
+            else if (_mainMenu == MenuOption.ScheduleViewer)
+            {
+
+            }
+            else if (_mainMenu == MenuOption.Reservations)
+            {
+                @if (itinerary is not null)
+                {
+                    <div class="w-100 d-flex justify-content-center">
+                        <div class="text-muted">Itinerary: @itinerary.Name</div>
+                    </div>
+                }
+            }
+        </div>
+
+        <!-- Fixed Bottom Buttons -->
+        @*  @if (step > 1 || places.Count > 0)
+        {
+            <div class="d-flex justify-content-end gap-2 bottom-button-bar">
+                @if (step > 1)
+                {
+                    <button class="btn btn-sm btn-primary" @onclick="GoBack">
+                        <i class="bi bi-caret-left-fill"></i> Back
+                    </button>
+                }
+
+                @if (places.Count > 0)
+                {
+                    @if (step == 4)
+                    {
+                        <button class="btn btn-sm btn-success" @onclick="AddPlacesToItinerary">
+                            Save <i class="bi bi-check-lg"></i>
+                        </button>
+                    }
+                    else
+                    {
+                        <button class="btn btn-sm btn-primary" @onclick="GoNext">
+                            Next <i class="bi bi-caret-right-fill"></i>
+                        </button>
+                    }
+                }
+            </div>
+        } *@
+    </div>
+</div>
+
+@if (showConfirm)
+{
+    <div class="modal-backdrop fade show" style="z-index: 1050;"></div>
+
+    <div id="confirmModal" class="modal d-block" tabindex="-1"
+         style="z-index: 1060; position: fixed; top: 0; left: 0; width: 100%; height: 100%;">
+        <div class="modal-dialog modal-dialog-centered"
+             style="transform: translateY(-50px); z-index: 1065;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Cancel Search?</h5>
+                </div>
+                <div class="modal-body">
+                    <p>Places has not been added to itinerary. Are you sure you want to remove them?</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="CloseModal">No</button>
+                    <button class="btn btn-primary" @onclick="CloseOffcanvas">Yes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@* <PlaceForm SelectedPlace="@selectedPlace" SelectedItineraryPlace="@selectedItineraryPlace" OnPlaceSaved="HandlePlaceSaved" /> *@
+@* @if (selectedPlace is not null)
+{
+    <PlaceForm @ref="placeFormRef" SelectedPlace="@selectedPlace" OnPlaceSaved="HandlePlaceSaved" />
+} *@
+<PlaceForm @ref="placeFormRef" OnInitializedRef="OnPlaceFormReady" SelectedPlace="@selectedPlace" />
+
+@if (showAlert)
+{
+    <div class="overlay" @onclick="CloseAlert">
+        <div class="edit-schedule-container" @onclick:stopPropagation="true">
+            <div class="popup-header">
+                <span class="popup-title">Missing Nights</span>
+                <button class="close-btn" @onclick="CloseAlert">×</button>
+            </div>
+
+            <div class="card-body">
+                <ul class="list-group">
+                    @foreach (var gap in GetDateGaps(itinerary.StartDate, itinerary.EndDate, reservations.Where(w => w.ReservationType == Core.Models.Enums.ReservationType.Accomodation).ToList()))
+                    {
+                        <li class="list-group-item list-group-item-warning">
+                            @gap
+                        </li>
+                    }
+                </ul>
+            </div>
+        </div>
+    </div>
+}
+
+<ConfirmDialog @ref="dialog" Id="confirmModal" Style="z-index:9999;" />
+
+@code {
+    [Parameter]
+    public int ItineraryId { get; set; }
+    [Parameter]
+    public EventCallback<DateTimeRangeViewModel> OnDateTimeRangeChanged { get; set; }
+    private DotNetObjectReference<ItineraryPlaces>? objRef;
+    private AccomodationEditor? accomodationEditorRef;
+    private ItineraryEditor? editorRef;
+    private PlaceForm? placeFormRef;
+    private ReservationListViewer? reservationListViewerRef;
+    private EditContext? _editContext;
+    private ConfirmDialog dialog = default!;
+    private string globeId = "globeContainerFixed";
+    private PlaceViewModel? selectedPlace;
+    private DateTimeRangeViewModel dateRangeViewModel = new();
+    private List<ItineraryPlaceViewModel> places = new();
+    private List<ItineraryAccomodationViewModel> accomodations = new();
+    private List<ItineraryReservationViewModel> reservations = new();
+    private TimeSpan StartTime = TimeSpan.FromHours(8);
+    private int TimeIncrement = 60;
+    private Dictionary<DateTime, List<PlaceViewModel>> placesByDate = new()
+    {
+        [DateTime.Today] = new() { /* list of places for today */ },
+        [DateTime.Today.AddDays(1)] = new() { /* list of places for tomorrow */ }
+    };
+    private List<string> dateButtons = new();
+    private ItineraryViewModel? itinerary = new();
+    private PlaceGroupViewModel? selectedGroup;
+    private List<PlaceGroupViewModel> groupedPlaces = new();
+    private List<ItineraryPlaceViewModel> savedPlaces = new();
+    private MenuOption _mainMenu = MenuOption.Places;
+    private MenuOption? _subMenu { get; set; }
+    private ItineraryPlaceViewModel? _swapFirstItem = null;
+    // private bool _renderDone;
+    private bool _dataLoaded = false;
+    private bool _hasInitialized = false;
+    private bool _scriptsLoaded = false;
+    private bool _scriptLoadFailed = false;
+    private bool IsAtStart = true;
+    private bool IsAtEnd = false;
+    private bool showConfirm = false;
+    private bool showAlert = false;
+    private bool disableSubmitButton = true;
+    private bool mainMenuOpen = false;
+    private bool addToSavedPlaces = false;
+    private string duplicatePlaceMessage = null;
+    private string offcanvasId = "offcanvas";
+    private string offCanvasTitle = "Search a Place";
+    private string? selectedButton = "ALL";
+    [Inject] IJSRuntime JS { get; set; } = default!;
+    private Guid userId { get; set; }
+
+    private async Task OnPlaceFormReady(PlaceForm form)
+    {
+        placeFormRef = form;
+
+        if (_pendingPlace != null)
+        {
+            placeFormRef.SelectedPlace = _pendingPlace;
+            await placeFormRef.SaveAsync();
+            _pendingPlace = null;
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _editContext = new EditContext(dateRangeViewModel);
+        // apiKey = Configuration["GoogleMapsApiKey"];
+        var today = DateTime.Today;
+
+        dateRangeViewModel = new DateTimeRangeViewModel
+        {
+            StartDate = today,
+            EndDate = today
+        };
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        try
+        {
+            if (firstRender)
+            {
+                await ApplyPendingPlaceAsync(); // safely apply pending place
+            }
+
+            if (firstRender && !_hasInitialized)
+            {
+                var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+                var user = authState.User;
+                var userIdClaim = user.FindFirst("AppUserId")?.Value;
+
+                if (Guid.TryParse(userIdClaim, out var uId))
+                {
+                    userId = uId;
+                    itinerary = await ItineraryService.GetByIdAsync(ItineraryId, userId);
+                }
+
+                if (itinerary is null)
+                    return;
+
+                foreach (var place in itinerary.ItineraryPlaces)
+                {
+                    if (place.MarkerId == Guid.Empty)
+                        place.MarkerId = Guid.NewGuid();
+                }
+
+                // Build data for UI
+                places = itinerary.ItineraryPlaces
+                    .GroupBy(p => p.Place.GooglePlaceId)
+                    .Select(g => g.First())
+                    .ToList();
+
+                reservations = itinerary.ItineraryReservations;
+
+                accomodations = itinerary.ItineraryAccomodations;
+                foreach (var acc in accomodations)
+                    if (acc.MarkerId == Guid.Empty)
+                        acc.MarkerId = Guid.NewGuid();
+
+                BuildGroupedPlaces();
+
+                // Render UI first
+                StateHasChanged();
+
+                // Ensure DOM is ready
+                await Task.Delay(50);
+
+                await InitializeGlobeAsync();
+
+                _hasInitialized = true;
+
+            }
+        }
+        catch (Exception ex)
+        {
+            _scriptLoadFailed = true;
+        }
+    }
+
+    private async Task InitializeGlobeAsync()
+    {
+        objRef?.Dispose();
+        objRef = DotNetObjectReference.Create(this);
+
+        var apiKey = Configuration["GoogleMapsApiKey"];
+        await JsInterop.LoadScript(
+            $"https://maps.googleapis.com/maps/api/js?key={apiKey}&libraries=marker,places&v=beta");
+
+        await JsInterop.InitAutocompleteElement(objRef);
+        await JsInterop.CreateGlobe(globeId, itinerary.ItineraryPlaces);
+        await JsInterop.RegisterResizeHandler(objRef);
+        await JsInterop.RegisterOffcanvasCloseHandler(offcanvasId, objRef);
+        await JsInterop.InitOffcanvasOutsideClick(offcanvasId, "confirmModal", objRef);
+        await JsInterop.RegisterOutsideClickHandler(offcanvasId, objRef);
+
+        // Add accommodation markers
+        foreach (var acc in accomodations)
+        {
+            var newMarker = new
+            {
+                id = Guid.NewGuid(),
+                place = acc.Place,
+                lat = acc.Place.Lat,
+                lng = acc.Place.Lng,
+                size = 30,
+                label = acc.Place.DisplayName,
+                startDate = acc.StartDate,
+                startTime = acc.StartTime
+            };
+
+            await JsInterop.AddMarkerToGlobe(newMarker, "hotel");
+        }
+
+        SetDateButtons();
+        _scriptsLoaded = true;
+        await UpdateScrollButtonsState();
+        await ScrollButtons(-1);
+    }
+
+    private void BuildGroupedPlaces()
+    {
+        var tempGroupedPlaces = itinerary.ItineraryPlaces
+            .GroupBy(p => p.StartDate)
+            .OrderBy(g => g.Key)
+            .Select(g => new
+            {
+                Date = g.Key,
+                ItineraryPlaces = g.ToList()
+            })
+            .ToList();
+
+        foreach (var group in tempGroupedPlaces)
+        {
+            var groupDateStr = group.Date.ToString("yyyy-MM-dd");
+
+            var plannedPlaces = group.ItineraryPlaces
+                .Where(w => w.Status == ItineraryPlaceStatus.Planned)
+                .OrderBy(o => o.StartTime)
+                .ToList();
+
+            if (plannedPlaces.Count > 0)
+            {
+                groupedPlaces.Add(new PlaceGroupViewModel
+                {
+                    Date = groupDateStr,
+                    ItineraryPlaces = plannedPlaces
+                });
+            }
+
+            savedPlaces.AddRange(group.ItineraryPlaces
+                .Where(w => w.Status == ItineraryPlaceStatus.Optional)
+                .OrderBy(o => o.StartTime)
+                .ToList());
+        }
+    }
+
+
+    [JSInvokable]
+    public async Task<bool> IsPlaceSaved(string googlePlaceId)
+    {
+        selectedPlace = null;
+        var existingPlace = await PlaceService.GetPlaceByGooglePlaceIdAsync(googlePlaceId);
+        selectedPlace = existingPlace;
+
+        return existingPlace != null;
+    }
+    private PlaceViewModel? _pendingPlace;
+    private async Task ApplyPendingPlaceAsync()
+    {
+        if (_pendingPlace != null && placeFormRef != null)
+        {
+            placeFormRef.SelectedPlace = _pendingPlace;
+            await placeFormRef.SaveAsync();
+            _pendingPlace = null;
+        }
+    }
+    [JSInvokable]
+    public async Task OnPlaceChanged(PlaceViewModel result)
+    {
+        _pendingPlace = result;
+        if (selectedPlace is null)
+        {
+            selectedPlace = result;
+            selectedPlace.Lat = result.Location.Lat;
+            selectedPlace.Lng = result.Location.Lng;
+
+            if (placeFormRef != null)
+            {
+                await ApplyPendingPlaceAsync();
+                // placeFormRef.SelectedPlace = selectedPlace;
+                // await placeFormRef.SaveAsync(); // call public method in child
+            }
+        }
+        var markerGuidId = Guid.NewGuid();
+        bool alreadyExists = places.Any(p => p.Place.GooglePlaceId == selectedPlace.GooglePlaceId);
+
+        if (alreadyExists)
+        {
+            // duplicatePlaceMessage = $"Place '{selectedPlace.DisplayName}' is already in the list.";
+            bool allowDuplicate = await ShowDialogDuplicateAsync(selectedPlace.DisplayName);
+            if (!allowDuplicate)
+            {
+                // StateHasChanged();
+                return; // Don't add again
+            }
+            else
+            {
+                markerGuidId = places.Where(p => p.Place.GooglePlaceId == selectedPlace.GooglePlaceId).FirstOrDefault().MarkerId;
+            }
+        }
+        else
+        {
+            // selectedPlace = await PlaceService.AddPlaceAsync(selectedPlace);
+            // StateHasChanged();
+        }
+
+        // StateHasChanged(); //call to save place to db which notifies PlaceForm and runs save function
+
+        disableSubmitButton = false;
+        duplicatePlaceMessage = null;
+
+
+
+        if (_mainMenu == MenuOption.Places)
+        {
+            if (addToSavedPlaces)
+            {
+                // To Do: add to savedPlaces
+                var newItineraryPlace = new ItineraryPlaceViewModel
+                {
+                    CreatedBy = userId,
+                    ItineraryId = ItineraryId,
+                    // MarkerId = Guid.NewGuid(),
+                    PlaceId = selectedPlace.Id.GetValueOrDefault(),
+                    Place = selectedPlace,
+                    StartDate = DateTime.Now.Date,
+                    EndDate = DateTime.Now.Date,
+                    StartTime = itinerary.ConfigStartTime,
+                    Status = ItineraryPlaceStatus.Optional
+                };
+                try
+                {
+
+                    newItineraryPlace = await ItineraryPlaceService.AddItineraryPlaceAsync(newItineraryPlace);
+                    // newItineraryPlace.MarkerId = markerGuidId;
+                }
+                // await SaveItineraryDatesToDB();
+                catch (Exception ex)
+                {
+
+                }
+
+                savedPlaces = savedPlaces
+                    .Append(newItineraryPlace)
+                    .OrderBy(o => o.Place.DisplayName)
+                    .ToList();
+
+                // await SavedPlacesChanged.InvokeAsync(savedPlaces);
+
+                await JsInterop.RecreateAutocomplete(objRef);
+
+                StateHasChanged();
+
+                // editorRef?.RefreshSavedPlaces(savedPlaces);
+            }
+            else
+            {
+                var newItineraryPlace = new ItineraryPlaceViewModel
+                {
+                    ItineraryId = ItineraryId,
+                    CreatedBy = userId,
+                    // MarkerId = markerGuidId,
+                    MarkerId = markerGuidId,
+                    PlaceId = selectedPlace.Id.GetValueOrDefault(),
+                    Place = selectedPlace,
+                    StartDate = DateTime.Now.Date,
+                    EndDate = DateTime.Now.Date,
+                    StartTime = itinerary.ConfigStartTime
+                };
+
+                if (!places.Any(p => p.Place.GooglePlaceId == newItineraryPlace.Place.GooglePlaceId))
+                {
+                    places.Insert(0, newItineraryPlace);
+                }
+
+                if (groupedPlaces.Count == 0)
+                {
+                    var todayDateStr = DateTime.Today.ToString("yyyy-MM-dd");
+                    newItineraryPlace = await ItineraryPlaceService.AddItineraryPlaceAsync(newItineraryPlace);
+                    // newItineraryPlace.MarkerId = markerGuidId;
+                    if (newItineraryPlace.MarkerId == Guid.Empty)
+                    {
+                        newItineraryPlace.MarkerId = markerGuidId;
+                    }
+                    var newGroup = new PlaceGroupViewModel
+                    {
+                        Date = todayDateStr,
+                        ItineraryPlaces = new List<ItineraryPlaceViewModel>
+                            {
+                                newItineraryPlace
+                            }
+                    };
+
+                    groupedPlaces.Add(newGroup);
+                }
+                else
+                {
+                    var lastGroup = groupedPlaces.OrderByDescending(o => o.Date).FirstOrDefault();
+
+                    if (lastGroup == null)
+                        return;
+
+                    var lastTime = lastGroup.ItineraryPlaces
+                    .OrderByDescending(o => o.StartTime)
+                    .FirstOrDefault();
+
+                    var newTime = lastTime != null
+                        ? lastTime.StartTime.Add(TimeSpan.FromMinutes(TimeIncrement))
+                        : StartTime; // fallback if no previous items
+
+                    // Parse last group date once
+                    var newDate = DateTime.Parse(lastGroup.Date);
+
+                    // If time exceeds 24h, roll over to next day
+                    if (newTime.TotalHours >= 24)
+                    {
+                        newTime = newTime - TimeSpan.FromDays(1); // wrap time into 0-23:59
+                        newDate = newDate.AddDays(1);             // increment day
+
+                        // Find or create a new group for the next day
+                        var nextDayGroup = groupedPlaces.FirstOrDefault(g => g.Date == newDate.ToString("yyyy-MM-dd"));
+                        if (nextDayGroup == null)
+                        {
+                            nextDayGroup = new PlaceGroupViewModel
+                            {
+                                Date = newDate.ToString("yyyy-MM-dd"),
+                                ItineraryPlaces = new List<ItineraryPlaceViewModel>()
+                            };
+                            groupedPlaces.Add(nextDayGroup);
+                        }
+
+                        newItineraryPlace.StartDate = newDate;
+                        newItineraryPlace.EndDate = newDate;
+
+                        newItineraryPlace = await ItineraryPlaceService.AddItineraryPlaceAsync(newItineraryPlace);
+                        // newItineraryPlace.MarkerId = markerGuidId;
+                        if (newItineraryPlace.MarkerId == Guid.Empty)
+                        {
+                            newItineraryPlace.MarkerId = markerGuidId;
+                        }
+                        nextDayGroup.ItineraryPlaces.Add(newItineraryPlace); // add to new day
+                    }
+                    else
+                    {
+                        newItineraryPlace.StartDate = newDate;
+                        newItineraryPlace.EndDate = newDate;
+                        newItineraryPlace.CreatedBy = userId;
+                        newItineraryPlace = await ItineraryPlaceService.AddItineraryPlaceAsync(newItineraryPlace);
+                        // newItineraryPlace.MarkerId = markerGuidId;
+                        if (newItineraryPlace.MarkerId == Guid.Empty)
+                        {
+                            newItineraryPlace.MarkerId = markerGuidId;
+                        }
+                        lastGroup.ItineraryPlaces.Add(newItineraryPlace); // add to current day
+                    }
+
+                    newItineraryPlace.StartTime = newTime;
+                }
+                //save to db
+                // newItineraryPlace = await ItineraryPlaceService.AddItineraryPlaceAsync(newItineraryPlace);
+                await SaveItineraryDatesToDB();
+                await JsInterop.RecreateAutocomplete(objRef);
+                var newMarker = new
+                {
+                    id = newItineraryPlace.MarkerId,
+                    markerId = newItineraryPlace.MarkerId,
+                    place = newItineraryPlace.Place,
+                    lat = selectedPlace.Lat,
+                    lng = selectedPlace.Lng,
+                    size = 30,
+                    label = selectedPlace.DisplayName,
+                    startDate = newItineraryPlace.StartDate,
+                    startTime = newItineraryPlace.StartTime
+                };
+
+                await JsInterop.AddMarkerToGlobe(newMarker);
+                SetDateButtons();
+                StateHasChanged();
+
+            }
+        }
+        else if (_mainMenu == MenuOption.Accomodations)
+        {
+            var newItineraryAccomodation = new ItineraryAccomodationViewModel
+            {
+                ItineraryId = ItineraryId,
+                // MarkerId = markerGuidId,
+                PlaceId = selectedPlace.Id.GetValueOrDefault(),
+                Place = selectedPlace,
+                StartDate = DateTime.Now.Date,
+                EndDate = DateTime.Now.Date,
+                StartTime = itinerary.ConfigStartTime
+            };
+
+            var newMarker = new
+            {
+                id = newItineraryAccomodation.MarkerId,
+                lat = selectedPlace.Lat,
+                lng = selectedPlace.Lng,
+                size = 30,
+                color = "red",
+                label = selectedPlace.DisplayName
+            };
+
+            if (accomodations.Count() == 0)
+            {
+                newItineraryAccomodation.StartDate = DateTime.Today;
+                newItineraryAccomodation.EndDate = DateTime.Today.AddDays(1);
+            }
+            else
+            {
+                var lastDate = accomodations.OrderByDescending(o => o.EndDate).FirstOrDefault().EndDate;
+                newItineraryAccomodation.StartDate = lastDate;
+                newItineraryAccomodation.EndDate = lastDate.AddDays(1);
+            }
+            newItineraryAccomodation.StartTime = new TimeSpan(15, 0, 0);
+            newItineraryAccomodation.EndTime = new TimeSpan(11, 0, 0);
+
+            newItineraryAccomodation = await ItineraryAccomodationService.AddItineraryAccomodationAsync(newItineraryAccomodation);
+
+            accomodations.Insert(0, newItineraryAccomodation);
+            StateHasChanged();
+
+            await JsInterop.AddMarkerToGlobe(newMarker);
+        }
+    }
+
+    private async Task RemovePlacesInItineraryByGoogleId(ItineraryPlaceViewModel item)
+    {
+        await ShowDialogDeleteDuplicatePlacesAsync(item);
+    }
+
+    private async Task RemoveItem(ItineraryPlaceViewModel item)
+    {
+        await ShowDialogDeletePlaceAsync(item);
+    }
+
+    private async Task RemoveAccomodation(ItineraryAccomodationViewModel item)
+    {
+        await ShowDialogDeleteAccomodationAsync(item);
+    }
+
+    private async Task HandleScheduleUpdate()
+    {
+        await SaveItineraryPlacesToDB();
+        await SaveItineraryDatesToDB();
+        SetDateButtons();
+        StateHasChanged();
+    }
+
+    private async Task HandleAccomodationsUpdate()
+    {
+        await SaveItineraryAccomodationsToDB();
+        await SaveItineraryDatesToDB();
+        SetDateButtons();
+        StateHasChanged();
+    }
+
+    // private async Task SaveItineraryDatesToDB()
+    // {
+    //     DateTime? minStartDate = null;
+    //     DateTime? maxEndDate = null;
+
+    //     foreach (var group in groupedPlaces)
+    //     {
+    //         if (group.ItineraryPlaces.Any())
+    //         {
+    //             var groupMin = group.ItineraryPlaces.Min(p => p.StartDate);
+    //             var groupMax = group.ItineraryPlaces.Max(p => p.EndDate);
+
+    //             if (!minStartDate.HasValue || groupMin < minStartDate)
+    //                 minStartDate = groupMin;
+
+    //             if (!maxEndDate.HasValue || groupMax > maxEndDate)
+    //                 maxEndDate = groupMax;
+    //         }
+    //     }
+
+    //     if (accomodations.Any())
+    //     {
+    //         var accMin = accomodations.Min(a => a.StartDate);
+    //         var accMax = accomodations.Max(a => a.EndDate);
+
+    //         if (!minStartDate.HasValue || accMin < minStartDate)
+    //             minStartDate = accMin;
+
+    //         if (!maxEndDate.HasValue || accMax > maxEndDate)
+    //             maxEndDate = accMax;
+    //     }
+
+    //     itinerary.StartDate = minStartDate;
+    //     itinerary.EndDate = maxEndDate;
+    //     var itinResult = await ItineraryService.UpdateAsync(itinerary);
+    // }
+
+    private bool _isSavingDates = false;
+
+    private async Task SaveItineraryDatesToDB()
+    {
+        if (_isSavingDates)
+            return;
+
+        _isSavingDates = true;
+
+        try
+        {
+            DateTime? minStartDate = null;
+            DateTime? maxEndDate = null;
+
+            // Compute min/max from itinerary places
+            foreach (var group in groupedPlaces)
+            {
+                if (group.ItineraryPlaces.Any())
+                {
+                    var groupMin = group.ItineraryPlaces.Min(p => p.StartDate);
+                    var groupMax = group.ItineraryPlaces.Max(p => p.EndDate);
+
+                    if (!minStartDate.HasValue || groupMin < minStartDate)
+                        minStartDate = groupMin;
+
+                    if (!maxEndDate.HasValue || groupMax > maxEndDate)
+                        maxEndDate = groupMax;
+                }
+            }
+
+            // Compute min/max from accommodations
+            if (accomodations.Any())
+            {
+                var accMin = accomodations.Min(a => a.StartDate);
+                var accMax = accomodations.Max(a => a.EndDate);
+
+                if (!minStartDate.HasValue || accMin < minStartDate)
+                    minStartDate = accMin;
+
+                if (!maxEndDate.HasValue || accMax > maxEndDate)
+                    maxEndDate = accMax;
+            }
+
+            itinerary.StartDate = minStartDate;
+            itinerary.EndDate = maxEndDate;
+            itinerary.UpdatedBy = userId;
+            // Update itinerary once
+            
+            await ItineraryService.UpdateAsync(itinerary);
+        }
+        finally
+        {
+            _isSavingDates = false;
+        }
+    }
+
+    private async Task HandlePlaceDeleted(ItineraryPlaceViewModel item)
+    {
+        await ConfirmDeletePlace(item);
+    }
+
+    private async Task HandleSaveForLater(ItineraryPlaceViewModel item)
+    {
+        await ConfirmSaveForLater(item);
+    }
+
+    private async Task ConfirmDeletePlace(ItineraryPlaceViewModel item)
+    {
+
+        // var isDeleted = await ItineraryPlaceService.DeleteByIdAsync(ItineraryId, item.Place.Id.Value);
+        var isDeleted = await ItineraryPlaceService.DeleteByIdAsync(ItineraryId, item.Id);
+        // places.Remove(item);
+
+
+        foreach (var group in groupedPlaces.ToList())
+        {
+            var placeToRemove = group.ItineraryPlaces.FirstOrDefault(p => p.PlaceId == item.Place.Id);
+            if (placeToRemove != null)
+            {
+                group.ItineraryPlaces.Remove(placeToRemove);
+            }
+
+            if (group.ItineraryPlaces.Count == 0)
+            {
+                groupedPlaces.Remove(group);
+            }
+        }
+
+        // Check if the item still exists anywhere
+        bool stillExists = groupedPlaces
+            .SelectMany(g => g.ItineraryPlaces)
+            .Any(p => p.PlaceId == item.Place.Id
+                   || p.Place.GooglePlaceId == item.Place.GooglePlaceId);
+
+        if (!stillExists)
+        {
+            places.RemoveAll(p => p.PlaceId == item.PlaceId || p.Place.GooglePlaceId == item.Place.GooglePlaceId);
+            await JsInterop.RemoveMarkerFromGlobe(item.MarkerId);
+        }
+
+        if (groupedPlaces.Count() == 0)
+        {
+            await CloseOffcanvas();
+            await OpenScreen(MenuOption.Places);
+        }
+
+        await SaveItineraryDatesToDB();
+
+        SetDateButtons();
+        StateHasChanged();
+
+    }
+
+    private async Task ConfirmDeleteDuplicatePlaces(ItineraryPlaceViewModel item)
+    {
+        // var isDeleted = await ItineraryPlaceService.DeleteByIdAsync(ItineraryId, item.Place.Id.Value);
+        // places.Remove(item);
+        places.Remove(item);
+
+        foreach (var group in groupedPlaces.ToList())
+        {
+            var removeItemsFromDB = group.ItineraryPlaces
+                    .Where(p => p.Place.GooglePlaceId == item.Place.GooglePlaceId)
+                    .ToList();
+
+            foreach (var removeItem in removeItemsFromDB)
+            {
+                await ItineraryPlaceService.DeleteByIdAsync(ItineraryId, removeItem.Id);
+                await JsInterop.RemoveMarkerFromGlobe(item.MarkerId);
+            }
+
+            group.ItineraryPlaces.RemoveAll(p => p.Place.GooglePlaceId == item.Place.GooglePlaceId);
+
+            // var placeToRemove = group.ItineraryPlaces.FirstOrDefault(p => p.PlaceId == item.Place.Id);
+            // if (placeToRemove != null)
+            // {
+            //     group.ItineraryPlaces.Remove(placeToRemove);
+            // }
+
+            if (group.ItineraryPlaces.Count == 0)
+            {
+                groupedPlaces.Remove(group);
+            }
+        }
+
+        if (groupedPlaces.Count() == 0)
+        {
+            await CloseOffcanvas();
+            await OpenScreen(MenuOption.Places);
+        }
+
+        await SaveItineraryDatesToDB();
+
+        SetDateButtons();
+        StateHasChanged();
+
+    }
+
+    private async Task ConfirmSaveForLater(ItineraryPlaceViewModel item)
+    {
+        item.Status = ItineraryPlaceStatus.Optional;
+        var isUpdated = await ItineraryPlaceService.UpdateItineraryPlaceAsync(item);
+        places.Remove(item);
+        await JsInterop.RemoveMarkerFromGlobe(item.MarkerId);
+
+        foreach (var group in groupedPlaces.ToList())
+        {
+            var placeToRemove = group.ItineraryPlaces.FirstOrDefault(p => p.PlaceId == item.Place.Id);
+            if (placeToRemove != null)
+            {
+                group.ItineraryPlaces.Remove(placeToRemove);
+            }
+
+            if (group.ItineraryPlaces.Count == 0)
+            {
+                groupedPlaces.Remove(group);
+            }
+        }
+
+        if (groupedPlaces.Count() == 0)
+        {
+            await CloseOffcanvas();
+            await OpenScreen(MenuOption.Places);
+        }
+
+        await SaveItineraryDatesToDB();
+
+        SetDateButtons();
+        StateHasChanged();
+    }
+
+    private async Task ConfirmDeleteAccomodation(ItineraryAccomodationViewModel item)
+    {
+        var isDeleted = await ItineraryAccomodationService.DeleteByIdAsync(ItineraryId, item.Place.Id.Value);
+        accomodations.Remove(item);
+
+        await JsInterop.RemoveMarkerFromGlobe(item.MarkerId);
+
+        // foreach (var group in groupedPlaces.ToList())
+        // {
+        //     var placeToRemove = group.ItineraryPlaces.FirstOrDefault(p => p.PlaceId == item.Place.Id);
+        //     if (placeToRemove != null)
+        //     {
+        //         group.ItineraryPlaces.Remove(placeToRemove);
+        //     }
+
+        //     if (group.ItineraryPlaces.Count == 0)
+        //     {
+        //         groupedPlaces.Remove(group);
+        //     }
+        // }
+
+        // if (groupedPlaces.Count() == 0)
+        // {
+        //     await CloseOffcanvas();
+        //     await OpenScreen(MenuOption.Places);
+        // }
+
+        // await SaveItineraryDatesToDB();
+
+        // SetDateButtons();
+        // StateHasChanged();
+
+    }
+
+    private void AddAccomodation(ItineraryPlaceViewModel item)
+    {
+        //CONVERT TO Accomodation
+        // accomodations.Add(item);
+    }
+
+    private Task HandlePlaceSaved(PlaceViewModel place)
+    {
+        // You could redirect, show a toast, etc.
+        return Task.CompletedTask;
+    }
+
+    // private async Task AddPlaceToItinerary()
+    // {
+    //     // To do: insert place to db
+    //     // if (_editContext!.Validate())
+    //     // {
+    //         await OnDateTimeRangeChanged.InvokeAsync(dateRangeViewModel);
+    //     // }
+    //     // await CloseOffcanvas();
+    // }
+    // private async Task GoBack()
+    // {
+    //     if (step > 1)
+    //     {
+    //         step -= 1;
+    //         StateHasChanged();
+    //     }
+    //     if (step == 1)
+    //     {
+    //         await ToggleOffcanvasFullScreen(false);
+    //     }
+    //     await ChangeOffcanvasTitle();
+    //     // StateHasChanged();
+    // }
+
+
+
+    // private async Task GoNext()
+    // {
+    //     if (step < 4)
+    //     {
+    //         step += 1;
+    //     }
+    //     if (step == 2)
+    //     {
+    //         await ToggleOffcanvasFullScreen(true);
+    //     }
+    //     if (step == 3)
+    //     {
+    //         selectedGroup = groupedPlaces.FirstOrDefault();
+    //     }
+    //     await ChangeOffcanvasTitle();
+    //     StateHasChanged();
+    // }
+
+    private async Task HandleOpenAddReservation()
+    {
+        await OpenScreen(MenuOption.Reservations);
+        reservationListViewerRef.ShowAddReservation = true;
+    }
+
+    private void HandleShowAlert()
+    {
+        showAlert = true;
+    }
+
+    private void CloseAlert()
+    {
+        showAlert = false;
+    }
+
+    public bool openAdd { get; set; }
+    private async Task OpenScreen(MenuOption selectedAction)
+    {
+        _mainMenu = selectedAction;
+        offCanvasTitle = _mainMenu.ScreenTitle();
+
+        switch (_mainMenu)
+        {
+            case MenuOption.Places:
+                await ToggleOffcanvasFullScreen(false);
+                await OpenOffcanvasHalfScreen();
+                break;
+            case MenuOption.ScheduleEditor:
+                await ToggleOffcanvasFullScreen(true);
+                await OpenOffcanvasHalfScreen();
+                break;
+            case MenuOption.ScheduleViewer:
+                await ToggleOffcanvasFullScreen(true);
+                await OpenOffcanvasHalfScreen();
+                break;
+            case MenuOption.Accomodations:
+                await ToggleOffcanvasFullScreen(false);
+                await OpenOffcanvasHalfScreen();
+                break;
+            case MenuOption.AccomodationEditor:
+                await ToggleOffcanvasFullScreen(true);
+                await OpenOffcanvasHalfScreen();
+                break;
+            case MenuOption.Reservations:
+                await ToggleOffcanvasFullScreen(true);
+                await OpenOffcanvasHalfScreen();
+                break;
+            case MenuOption.Flights:
+                break;
+            case MenuOption.Transportation:
+                break;
+            case MenuOption.Expenses:
+                break;
+            case MenuOption.Checklists:
+                break;
+            case MenuOption.Notes:
+                break;
+            case MenuOption.Delete:
+                await ShowDialogDeleteItineraryAsync();
+                break;
+        }
+
+        await JsInterop.RecreateAutocomplete(objRef);
+        duplicatePlaceMessage = null;
+    }
+    // {
+
+    private void OnPlaceListUpdate(SortableListEventArgs args)
+    {
+        var itemToMove = places[args.OldIndex];
+
+        places.RemoveAt(args.OldIndex);
+
+        if (args.NewIndex < places.Count)
+            places.Insert(args.NewIndex, itemToMove);
+        else
+            places.Add(itemToMove);
+    }
+
+    @* private async Task ChangeOffcanvasTitle()
+    {
+        switch (step)
+        {
+            case 1:
+                offCanvasTitle = "Search a Place";
+                break;
+            case 2:
+                offCanvasTitle = "Itinerary Schedule";
+                break;
+        } 
+    }*@
+
+    private async Task SaveItinerary()
+    {
+        await SaveItineraryPlacesToDB();
+        await SaveItineraryDatesToDB();
+        SetDateButtons();
+
+        await ToggleOffcanvasFullScreen(false);
+        await CloseOffcanvas();
+
+        StateHasChanged();
+    }
+
+    private bool _isSaving = false;
+    private async Task SaveItineraryPlacesToDB()
+    {
+        if (_isSaving)
+            return;
+
+        _isSaving = true;
+        try
+        {
+            var allPlaces = groupedPlaces.SelectMany(g => g.ItineraryPlaces).ToList();
+
+
+            var updatedPlaces = await ItineraryPlaceService.AddOrUpdateItineraryPlacesAsync(ItineraryId, allPlaces, userId);
+
+            foreach (var group in groupedPlaces)
+            {
+                group.ItineraryPlaces = updatedPlaces
+                    .Where(p => p.StartDate.ToString("yyyy-MM-dd") == group.Date)
+                    .OrderBy(p => p.StartTime)
+                    .ToList();
+            }
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+
+
+        // foreach (var group in groupedPlaces)
+        // {
+        //     // Process this group's itinerary places
+        //     var newPlaces = await ItineraryPlaceService.AddOrUpdateItineraryPlacesAsync(ItineraryId, group.ItineraryPlaces);
+        //     group.ItineraryPlaces = newPlaces;
+        // }
+    }
+    private async Task SaveItineraryAccomodationsToDB()
+    {
+        var newAccomodations = await ItineraryAccomodationService.AddOrUpdateItineraryAccomodationsAsync(ItineraryId, accomodations);
+        accomodations = newAccomodations;
+    }
+
+    private async Task UpdateSchedule()
+    {
+        if (editorRef != null)
+        {
+            await editorRef.UpdateSchedule();
+        }
+        SetDateButtons();
+    }
+
+    private void CancelSwap()
+    {
+        if (editorRef != null)
+        {
+            editorRef.CancelSwap();
+        }
+    }
+
+    private void CancelMove()
+    {
+        if (editorRef != null)
+        {
+            editorRef.CancelMove();
+        }
+    }
+
+    private void SetDateButtons()
+    {
+        dateButtons.Clear();
+        foreach (var group in groupedPlaces)
+        {
+            //format date?
+            dateButtons.Add(group.Date);
+        }
+        if (dateButtons.Count() > 0)
+        {
+            dateButtons.Insert(0, "ALL");
+        }
+
+        //save dates to itinerary
+    }
+
+    private async Task FitGlobe()
+    {
+        await FitMap("ALL");
+        // await JsInterop.FitGlobe();
+    }
+
+    private async Task ScrollToSection(string id)
+    {
+        await JsInterop.ScrollToElementById(id);
+    }
+
+    private async Task ScrollButtons(int direction)
+    {
+        await JsInterop.ScrollButtonRow("dragScrollContainer", direction);
+        await UpdateScrollButtonsState();
+    }
+
+    private async Task UpdateScrollButtonsState()
+    {
+        var scrollInfo = await JsInterop.GetScrollInfo("dragScrollContainer");
+        IsAtStart = scrollInfo.ScrollLeft == 0;
+        IsAtEnd = scrollInfo.ScrollLeft + scrollInfo.ClientWidth >= scrollInfo.ScrollWidth;
+        StateHasChanged();
+    }
+
+    private async Task OnScroll()
+    {
+        await UpdateScrollButtonsState();
+    }
+
+    [JSInvokable]
+    public async Task CheckScrollButtons()
+    {
+        var (isAtStart, isAtEnd) = await JsInterop.GetScrollState("dragScrollContainer");
+        IsAtStart = isAtStart;
+        IsAtEnd = isAtEnd;
+        StateHasChanged();
+    }
+
+    [JSInvokable]
+    public void HandleOffcanvasOutsideClick()
+    {
+        showConfirm = true;
+        StateHasChanged();
+    }
+
+    private async Task OpenOffcanvasHalfScreen()
+    {
+        await JsInterop.OpenOffcanvasHalfScreen(offcanvasId);
+    }
+
+    private async Task ToggleOffcanvasFullScreen(bool isFullScreen)
+    {
+        await JsInterop.ToggleOffcanvasFullScreen(offcanvasId, isFullScreen);
+    }
+
+    private async Task CloseOffcanvas()
+    {
+        // To do: 1) remove recently added pin
+        // To do: 1) rebound map
+
+        await JsInterop.CloseOffcanvas(offcanvasId);
+        await JsInterop.RecreateAutocomplete(objRef);
+        duplicatePlaceMessage = null;
+        _subMenu = null;
+
+        // newPlaces.Clear();
+        showConfirm = false;
+        disableSubmitButton = true;
+
+        StateHasChanged();
+    }
+
+    [JSInvokable]
+    public async Task OnOffcanvasClosed()
+    {
+        duplicatePlaceMessage = null;
+        _subMenu = null;
+        StateHasChanged();
+    }
+
+    private void HandleSubMenuChanged(MenuOption? value)
+    {
+        _subMenu = value;
+        // StateHasChanged();
+        // Do whatever parent needs when submenu changes
+    }
+
+    private void CloseModal()
+    {
+        showConfirm = false;
+        StateHasChanged(); // force UI update
+    }
+
+    private void HandleSubmit(DateTimeRangeViewModel model)
+    {
+        // TO DO: Save place to db
+        // TO DO: CloseModal
+        Console.WriteLine($"Date/time range updated: {model.StartDate} {model.StartTime12HrDisplay} — {model.EndDate} {model.EndTime12HrDisplay}");
+    }
+
+    private void HandleEditDate()
+    {
+        Console.WriteLine("Edit clicked");
+    }
+
+    private void UpdateItineraryName(string newName)
+    {
+        itinerary.Name = newName;
+        StateHasChanged();
+    }
+
+
+    private List<LatLng> coordinates = new();
+    private async Task FitMap(string strButton)
+    {
+        selectedButton = strButton;
+        coordinates.Clear();
+
+        if (strButton == "ALL")
+        {
+            foreach (var group in groupedPlaces)
+            {
+                SetCoordinates(group);
+            }
+        }
+        else
+        {
+            var group = groupedPlaces.Where(w => w.Date == strButton).FirstOrDefault();
+            SetCoordinates(group);
+        }
+
+        await JsInterop.FitGlobeToCoordinates(coordinates);
+
+        StateHasChanged();
+    }
+
+    private void SetCoordinates(PlaceGroupViewModel group)
+    {
+        foreach (var place in group.ItineraryPlaces)
+        {
+            coordinates.Add(new LatLng
+            {
+                lat = place.Place.Lat,
+                lng = place.Place.Lng
+            });
+        }
+    }
+
+    private async Task OnMainMenuItemClick(MenuOption selectedAction)
+    {
+        await OpenScreen(selectedAction);
+        CloseMainMenu();
+    }
+
+    private void ToggleMainMenu()
+    {
+        mainMenuOpen = !mainMenuOpen;
+    }
+
+    [JSInvokable]
+    public void OnClickOutside(string source)
+    {
+        CloseMainMenu();
+    }
+
+    public void CloseMainMenu()
+    {
+        mainMenuOpen = false;
+        StateHasChanged();
+    }
+
+    private async Task ShowDialogDeleteItineraryAsync()
+    {
+        var options = new ConfirmDialogOptions
+        {
+            IsVerticallyCentered = true,
+            YesButtonColor = ButtonColor.Danger
+
+        };
+        var confirmation = await dialog.ShowAsync(
+            title: "Delete Itinerary?",
+            message1: "Are you sure you want to DELETE itinerary? All places saved will be removed as well.",
+            confirmDialogOptions: options);
+
+        if (confirmation)
+        {
+            await ConfirmDeleteItinerary();
+        }
+    }
+
+    private async Task<bool> ShowDialogDuplicateAsync(string place)
+    {
+        var options = new ConfirmDialogOptions
+        {
+            IsVerticallyCentered = true,
+            YesButtonColor = ButtonColor.Danger
+
+        };
+        var confirmation = await dialog.ShowAsync(
+            title: "Existing Place.",
+            message1: $"'{place}' already exists in itinerary. Want to add it again?",
+            confirmDialogOptions: options);
+
+        if (confirmation)
+        {
+            return true;
+        }
+        return false;
+    }
+
+    private async Task ShowDialogDeletePlaceAsync(ItineraryPlaceViewModel item)
+    {
+        var options = new ConfirmDialogOptions
+        {
+            IsVerticallyCentered = true,
+            YesButtonColor = ButtonColor.Danger
+
+        };
+        var confirmation = await dialog.ShowAsync(
+            title: "Delete Place?",
+            message1: $"Are you sure you want to remove '{item.Place.DisplayName}' from itinerary?",
+            confirmDialogOptions: options);
+
+        if (confirmation)
+        {
+            await ConfirmDeletePlace(item);
+        }
+    }
+
+    private async Task ShowDialogDeleteDuplicatePlacesAsync(ItineraryPlaceViewModel item)
+    {
+        var options = new ConfirmDialogOptions
+        {
+            IsVerticallyCentered = true,
+            YesButtonColor = ButtonColor.Danger
+
+        };
+        var confirmation = await dialog.ShowAsync(
+            title: "Delete Place?",
+            message1: $"Are you sure you want to remove '{item.Place.DisplayName}' from itinerary?",
+            confirmDialogOptions: options);
+
+        if (confirmation)
+        {
+            await ConfirmDeleteDuplicatePlaces(item);
+        }
+    }
+
+    private async Task ShowDialogDeleteAccomodationAsync(ItineraryAccomodationViewModel item)
+    {
+        var options = new ConfirmDialogOptions
+        {
+            IsVerticallyCentered = true,
+            YesButtonColor = ButtonColor.Danger
+
+        };
+        var confirmation = await dialog.ShowAsync(
+            title: "Delete Accomodation?",
+            message1: $"Are you sure you want to remove '{item.Place.DisplayName}' from itinerary?",
+            confirmDialogOptions: options);
+
+        if (confirmation)
+        {
+            await ConfirmDeleteAccomodation(item);
+        }
+    }
+
+
+    private async Task ConfirmDeleteItinerary()
+    {
+        var isDeleted = await ItineraryService.DeleteByIdAsync(ItineraryId);
+        if (isDeleted)
+        {
+            Nav.NavigateTo("/itineraries");
+        }
+        else
+        {
+            // TO DO: Show message "Itinerary could not be deleted."
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            if (_scriptsLoaded)
+            {
+                try
+                {
+                    await JsInterop.RemoveAllListeners();
+                    await JsInterop.DestroyItineraryGlobe();
+                }
+                catch (JSDisconnectedException) { }
+                catch (ObjectDisposedException) { }
+
+                _scriptsLoaded = false;
+            }
+
+            objRef?.Dispose();
+            objRef = null;
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Error during DisposeAsync: {ex.Message}");
+        }
+    }
+
+    // private enum Action
+    // {
+    //     Places,
+    //     ScheduleEditor,
+    //     ScheduleViewer,
+    //     ScheduleCardsViewer,
+    //     Accomodations,
+    //     Flights,
+    //     Transportation,
+    //     Expenses,
+    //     Checklists,
+    //     Notes,
+    //     Delete
+    // }
+}

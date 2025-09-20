@@ -1,0 +1,124 @@
+﻿@using System.Text.Json
+@using TailwindMauiBlazorApp.Core.Models.Entities
+@using TailwindMauiBlazorApp.Shared.Helpers
+@using TailwindMauiBlazorApp.Shared.Models.ViewModels
+@using TailwindMauiBlazorApp.Shared.Services
+@* @inject IPlaceService PlaceService *@
+@inject IIPlaceService PlaceService
+@inject IIItineraryPlaceService ItineraryPlaceService
+@inject GooglePlacesService GooglePlaceService
+
+@code {
+    [Parameter]
+    public PlaceViewModel? SelectedPlace { get; set; }
+    [Parameter]
+    public ItineraryPlaceViewModel? SelectedItineraryPlace { get; set; }
+    [Parameter]
+    public EventCallback<PlaceViewModel> OnPlaceSaved { get; set; }
+    private bool _hasInitialized;
+
+    [Parameter] public EventCallback<PlaceForm> OnInitializedRef { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await OnInitializedRef.InvokeAsync(this); // notify parent that @ref is ready
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!_hasInitialized)
+        {
+            _hasInitialized = true;
+            return; // skip saving on first render
+        }
+
+        if (SelectedPlace != null
+        && SelectedPlace.Id.GetValueOrDefault() == 0
+        && !string.IsNullOrEmpty(SelectedPlace.DisplayName))
+        {
+            await SaveAsync();
+        }
+    }
+
+    public async Task SaveAsync()
+    {
+        if (SelectedPlace is not null)
+        {
+            await SavePlaceToDatabase(SelectedPlace);
+            await OnPlaceSaved.InvokeAsync(SelectedPlace);
+        }
+    }
+
+    private async Task SavePlaceToDatabase(PlaceViewModel placeModel)
+    {
+        var countryCode = GetAddressComponent(placeModel.AddressComponents, "country");
+        // var thumbnailUrl = await GooglePlaceService.GetFirstPhotoUrlAsync(placeModel.GooglePlaceId, countryCode);
+
+        //HARD CODED TO SAVE GOOGLE API CALLS
+        string? thumbnailUrl = null;
+
+        var place = new Place
+        {
+            GooglePlaceId = placeModel.GooglePlaceId,
+            DisplayName = placeModel.DisplayName,
+            FormattedAddress = placeModel.FormattedAddress,
+            Lat = placeModel.Location.Lat,
+            Lng = placeModel.Location.Lng,
+
+            // Optional thumbnail
+            ThumbnailUrl = thumbnailUrl,
+
+            // Optional rating data
+            Rating = placeModel.Rating,
+            UserRatingCount = placeModel.UserRatingCount,
+
+            // Optional type data
+            PrimaryType = placeModel.PrimaryType,
+            PrimaryTypeDisplayName = placeModel.PrimaryTypeDisplayName,
+            Types = placeModel.Types?.ToArray(), // convert List<string> to string[]
+
+            // Address breakdown from postal address
+            // AdministrativeArea = placeModel.PostalAddress?.AdministrativeArea,
+            // Locality = placeModel.PostalAddress?.Locality,
+            // PostalCode = placeModel.PostalAddress?.PostalCode,
+            // RegionCode = placeModel.PostalAddress?.RegionCode,
+            AdministrativeArea = GetAddressComponent(placeModel.AddressComponents, "administrative_area_level_1"),
+            Locality = GetAddressComponent(
+                placeModel.AddressComponents,
+                "locality",                // most reliable city
+                "postal_town",             // UK fallback
+                "administrative_area_level_2" // fallback region/city
+            ),
+            PostalCode = GetAddressComponent(placeModel.AddressComponents, "postal_code"),
+            RegionCode = countryCode,
+
+            // Opening hours as JSON (optional)
+            OpeningHoursJson = placeModel.RegularOpeningHours != null
+        ? JsonSerializer.Serialize(placeModel.RegularOpeningHours)
+        : null
+
+        };
+
+        var savedPlace = await PlaceService.AddOrGetPlaceAsync(place);
+        SelectedPlace.Id = savedPlace.Id;
+        SelectedPlace.ThumbnailUrl = savedPlace.ThumbnailUrl;
+        // TO DO: Uncomment later
+        // await ItineraryPlaceService.AddItineraryPlaceAsync(itineraryPlaceModel);
+    }
+    private static string? GetAddressComponent(IList<AddressComponentViewModel> components, params string[] types)
+    {
+        if (components == null || types == null)
+            return null;
+
+        foreach (var type in types)
+        {
+            var comp = components.FirstOrDefault(c => c.Types.Contains(type));
+            if (comp != null)
+                return comp.ShortText ?? comp.LongText;
+        }
+        return null;
+    }
+}

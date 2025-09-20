@@ -1,0 +1,282 @@
+﻿@using BlazorBootstrap
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Identity
+@using TailwindMauiBlazorApp.Shared.Helpers
+@using TailwindMauiBlazorApp.Shared.Services
+@inherits LayoutComponentBase
+@inject JsInterop JsInterop
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthProvider
+@inject Microsoft.AspNetCore.Http.IHttpContextAccessor HttpContextAccessor
+@inject CustomAuthenticationStateProvider AuthProvider
+
+<CascadingAuthenticationState>
+    <div class="top-menu d-flex bg-dark justify-content-between align-items-center bg-light border-bottom px-4 py-2">
+        <h5 class="mb-0 text-white"></h5>
+
+        <div class="text-white d-flex align-items-center gap-2">
+
+            <AuthorizeView>
+                <Authorized>
+                    @* <span>Hello, @context.User.Identity.Name!</span> *@
+
+                    <!-- Dropdown next to username -->
+                    <div class="dropdown">
+                        <button class="btn btn-outline-light dropdown-toggle"
+                                type="button" id="userMenuButton"
+                                data-bs-toggle="dropdown"
+                                aria-expanded="false">
+                            <i class="bi bi-person-circle"></i>
+                        </button>
+
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenuButton">
+                            <li class="dropdown-header">
+                                @context.User.Identity.Name <br />
+                                <small class="text-muted">@context.User.FindFirstValue(ClaimTypes.Email)</small>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="/profile">
+                                    <i class="bi bi-person me-2"></i> Profile
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="/settings">
+                                    <i class="bi bi-gear me-2"></i> Settings
+                                </a>
+                            </li>
+                            <li>
+                                <button class="dropdown-item d-flex align-items-center" @onclick="ToggleTheme">
+                                    <i class="bi bi-moon-stars me-2"></i> Toggle Theme
+                                </button>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <button class="dropdown-item" @onclick="Logout">
+                                    Logout
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+                </Authorized>
+                <NotAuthorized>
+                    <button class="btn btn-primary" @onclick="LoginWithGoogle">
+                        Login with Google
+                    </button>
+                </NotAuthorized>
+            </AuthorizeView>
+
+        </div>
+
+        @* <div class="text-white">
+
+
+            <AuthorizeView>
+                <Authorized>
+                    Hello, @context.User.Identity.Name!
+                    <div class="dropdown">
+                        <button type="button" class="user-outline-btn" id="userMenuButton">
+                            <i class="bi bi-person-circle"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenuButton" style="min-width: 180px;">
+                            <!-- User info header -->
+                            <li class="dropdown-header">rafael@example.com</li>
+
+                            <!-- Menu items -->
+                            <li>
+                                <a class="dropdown-item" href="/profile">
+                                    <i class="bi bi-person me-2"></i> Profile
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="/settings">
+                                    <i class="bi bi-gear me-2"></i> Settings
+                                </a>
+                            </li>
+
+                            <!-- Toggle Theme -->
+                            <li>
+                                <button class="dropdown-item d-flex align-items-center" @onclick="ToggleTheme">
+                                    <i class="bi bi-moon-stars me-2"></i> Toggle Theme
+                                </button>
+                            </li>
+
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <a class="dropdown-item" href="/Account/Logout">
+                                    <i class="bi bi-box-arrow-right me-2"></i> Logout
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </Authorized>
+                <NotAuthorized>
+                    <button class="btn btn-primary" id="userMenuButton"
+                            @onclick="LoginWithGoogle">
+                        Login with Google
+                    </button>
+
+                </NotAuthorized>
+            </AuthorizeView>
+        </div> *@
+    </div>
+
+    <!-- Responsive container -->
+    <div class="layout d-flex min-vh-100">
+
+        <!-- Sidebar (visible on large screens only) -->
+        <div id="sidebar" class=" d-none d-lg-block bg-dark text-white" style="width: 250px;">
+            <NavMenu />
+        </div>
+
+        <!-- Main content -->
+        <div class="flex-grow-1 position-relative ms-lg-250">
+            <div id="theme-container" class="@themeClass" style="z-index: 10;">
+                @Body
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom nav only on small screens -->
+    <div class="d-lg-none fixed-bottom bg-dark text-white border-top">
+        <div class="d-flex justify-content-around py-2">
+            <NavLink class="text-white" href="/" title="Home">
+                <i class="bi bi-house fs-4"></i>
+            </NavLink>
+            <NavLink class="text-white" href="/itineraries" title="Trips">
+                <i class="bi bi-geo-alt fs-4"></i>
+            </NavLink>
+            <NavLink class="text-white" href="/weather" title="Weather">
+                <i class="bi bi-cloud-sun fs-4"></i>
+            </NavLink>
+        </div>
+    </div>
+
+    <div id="blazor-error-ui" data-nosnippet>
+        An unhandled error has occurred.
+        <a href="." class="reload">Reload</a>
+        <span class="dismiss">🗙</span>
+    </div>
+
+</CascadingAuthenticationState>
+
+@* <div class="page">
+    <div class="sidebar">
+        <NavMenu />
+    </div>
+
+    <main>
+        <div class="top-row px-4">
+            @if (user?.Identity?.IsAuthenticated == true)
+            {
+                <span>Hello, @user.Identity.Name!</span>
+                <a href="api/account/logout" class="ml-2">Logout</a>
+            }
+            else
+            {
+                <a href="api/account/login">Login with Google</a>
+            }
+        </div>
+
+        <article class="content px-4">
+            @Body
+        </article>
+    </main>
+</div> *@
+
+<div id="blazor-error-ui" data-nosnippet>
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+    <span class="dismiss">🗙</span>
+</div>
+
+@code {
+    private bool isDarkTheme = true;
+    private string themeClass => isDarkTheme ? "dark" : "";
+
+    protected override void OnInitialized()
+    {
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+
+        // If returning from Google sign-in but user canceled or pressed back
+        if (uri.AbsolutePath == "/signin-google" && !uri.Query.Contains("code"))
+        {
+            // Clear Blazor authentication state
+            AuthProvider.MarkUserAsLoggedOut();
+
+            // Redirect to your logout endpoint to remove cookie
+            Navigation.NavigateTo("/api/account/logout", true);
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JsInterop.SetTheme("dark");    
+            
+        }
+    }
+
+    private async Task ToggleTheme()
+    {
+        isDarkTheme = !isDarkTheme;
+        // await JsInterop.SetTheme(isDarkTheme ? "dark" : "light");
+    }
+
+    private void LoginWithGoogle()
+    {
+        Navigation.NavigateTo("/api/account/login", forceLoad: true);
+        // Navigation.NavigateTo("signin-google", true);
+    }
+
+    private async Task Logout()
+    {
+        // Clear the Blazor circuit user
+        if (AuthProvider is CustomAuthenticationStateProvider customProvider)
+        {
+            customProvider.MarkUserAsLoggedOut();
+        }
+
+        Navigation.NavigateTo("/api/account/logout", forceLoad: true);
+
+    }
+    // [CascadingParameter] private Task<AuthenticationState> AuthenticationStateTask { get; set; }
+    // private ClaimsPrincipal? user;
+
+    // protected override async Task OnInitializedAsync()
+    // {
+    //     var authState = await AuthenticationStateTask;
+    //     user = authState.User;
+    //     // var state = await AuthProvider.GetAuthenticationStateAsync();
+    //     //  user = state.User;
+    //     // Console.WriteLine($"Authenticated: {user.Identity?.IsAuthenticated}, Name: {user.Identity?.Name}");
+    // }
+
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
+    private ClaimsPrincipal? user;
+
+    // protected override async Task OnInitializedAsync()
+    // {
+    //     var state = await AuthenticationStateTask;
+    //     user = state.User;
+    // }
+
+    // protected override async Task OnInitializedAsync()
+    // {
+    //     var state = await AuthProvider.GetAuthenticationStateAsync();
+    //     user = state.User;
+    //     if (AuthenticationStateTask != null)
+    //     {
+    //         var authState = await AuthenticationStateTask;
+    //         user = authState.User;
+    //     }
+    //     else
+    //     {
+    //         // Handle null gracefully — maybe default to anonymous user
+    //         user = new ClaimsPrincipal(new ClaimsIdentity());
+    //     }
+    // }
+}

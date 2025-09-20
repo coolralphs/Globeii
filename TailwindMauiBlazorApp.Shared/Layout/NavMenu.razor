@@ -1,0 +1,77 @@
+﻿@*  <div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="">Tailwind Travel</a>
+    </div>
+</div> *@
+
+<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+
+@* <div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
+    <nav class="flex-column">
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                <span class="bi bi-calendar-door-fill-nav-menu" aria-hidden="true"></span> Home
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="itineraries">
+                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Itineraries
+            </NavLink>
+        </div>
+    </nav>
+</div> *@
+
+<div class="nav-scrollable">
+    <nav class="flex-column" style="z-index: 1030;">
+        <!-- Home -->
+        <div class="nav-item px-3">
+            <NavLink class="nav-link d-flex align-items-center gap-2" href="" Match="NavLinkMatch.All">
+                <i class="bi bi-house-door-fill fs-4 d-inline-block" style="line-height: 1;"></i>
+                <span class="pt-0">Home</span>
+            </NavLink>
+        </div>
+
+        <!-- Itineraries -->
+        <div class="nav-item px-3">
+            <NavLink class="nav-link d-flex align-items-center gap-2" href="itineraries">
+                <i class="bi bi-geo-alt-fill fs-4 d-inline-block" style="line-height: 1;"></i>
+                <span class="pt-0">Itineraries</span>
+            </NavLink>
+        </div>
+    </nav>
+</div>
+
+<!-- Bottom nav (only on small screens) -->
+@* <div class="d-lg-none fixed-bottom bg-dark text-white border-top">
+    <div class="d-flex justify-content-around py-2">
+        <NavLink class="text-white" href="/" title="Home">
+            <i class="bi bi-house fs-4"></i>
+        </NavLink>
+        <NavLink class="text-white" href="/itineraries" title="Itineraries">
+            <i class="bi bi-calendar fs-4"></i>
+        </NavLink>
+        <NavLink class="text-white" href="/weather" title="Weather">
+            <i class="bi bi-cloud-sun fs-4"></i>
+        </NavLink>
+    </div>
+</div> *@
+
+@* <div>
+    <div class="nav-item px-3">
+        <NavLink class="nav-link" href="/" Match="NavLinkMatch.All">
+            <i class="bi bi-house-door-fill-nav-menu"></i> Home
+        </NavLink>
+    </div>
+
+    <div class="nav-item px-3">
+        <NavLink class="nav-link" href="/itineraries">
+            <i class="bi bi-plus-square-fill-nav-menu"></i> Itineraries
+        </NavLink>
+    </div>
+
+    <div class="nav-item px-3">
+        <NavLink class="nav-link" href="/weather">
+            <i class="bi bi-list-nested-nav-menu"></i> Weather
+        </NavLink>
+    </div>
+</div> *@

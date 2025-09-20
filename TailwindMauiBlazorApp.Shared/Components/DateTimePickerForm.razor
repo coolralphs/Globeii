@@ -1,0 +1,173 @@
+﻿@using System.ComponentModel.DataAnnotations
+@using TailwindMauiBlazorApp.Shared.Models.ViewModels
+@implements IDisposable
+
+@if (_editContext != null)
+{
+    <EditForm EditContext="_editContext" OnValidSubmit="HandleValidationBeforeSubmit">
+        <DataAnnotationsValidator />
+
+        <div class="row g-3">
+            <!-- Dates -->
+            <div class="col-6">
+                <label class="form-label">Start Date</label>
+                <InputDate @bind-Value="Model.StartDate" class="form-control" />
+                <ValidationMessage For="@(() => Model.StartDate)" />
+                @if (_fieldErrors.TryGetValue(nameof(Model.StartDate), out var error0) && !string.IsNullOrEmpty(error0))
+                {
+                    <div class="text-danger">@error0</div>
+                }
+            </div>
+            <div class="col-6">
+                <label class="form-label">End Date</label>
+                <InputDate @bind-Value="Model.EndDate" class="form-control" />
+                <ValidationMessage For="@(() => Model.EndDate)" />
+                @if (_fieldErrors.TryGetValue(nameof(Model.EndDate), out var error1) && !string.IsNullOrWhiteSpace(error1))
+                {
+                    <div class="text-danger">@error1</div>
+                }
+            </div>
+
+            <!-- Times -->
+            <div class="col-6">
+                <label class="form-label">Start Time</label>
+                <InputTimeSpan @bind-Value="Model.StartTime" CssClass="form-control" />
+                <ValidationMessage For="@(() => Model.StartTime)" />
+                @if (_fieldErrors.TryGetValue(nameof(Model.StartTime), out var error2) && !string.IsNullOrWhiteSpace(error2))
+                {
+                    <div class="text-danger">@error2</div>
+                }
+                <div><small class="text-muted">@Model.StartTime12HrDisplay</small></div>
+            </div>
+            <div class="col-6">
+                <label class="form-label">End Time</label>
+                <InputTimeSpan @bind-Value="Model.EndTime" CssClass="form-control" />
+                <ValidationMessage For="@(() => Model.EndTime)" />
+                @if (_fieldErrors.TryGetValue(nameof(Model.EndTime), out var error3) && !string.IsNullOrWhiteSpace(error3))
+                {
+                    <div class="text-danger">@error3</div>
+                }
+                <div><small class="text-muted">@Model.EndTime12HrDisplay</small></div>
+            </div>
+        </div>
+
+        <div class="d-flex">
+            <button type="button"
+                    class="btn btn-success ms-auto"
+                    style="margin-top: 0.5rem;"
+                    @onclick="HandleValidationBeforeSubmit"
+                    disabled="@(IsSubmitDisabled)">
+                Add to Itinerary
+            </button>
+        </div>
+    </EditForm>
+}
+else
+{
+    <p>Loading...</p>
+}
+
+@code {
+    [Parameter]
+    public DateTimeRangeViewModel Model { get; set; }
+    [Parameter]
+    public EventCallback<DateTimeRangeViewModel> OnSubmit { get; set; }
+    private EditContext? _editContext;
+    private Dictionary<string, string?> _fieldErrors = new();
+    [Parameter]
+    public bool DisableSubmitButton { get; set; }
+    private bool _isValid = true;
+    private bool IsSubmitDisabled => !_isValid || DisableSubmitButton;
+
+    protected override void OnInitialized()
+    {
+        _editContext = new EditContext(Model);
+        _editContext.OnFieldChanged += HandleFieldChanged;
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (_editContext != null)
+        {
+            // Unsubscribe previous handler to avoid duplicates
+            _editContext.OnFieldChanged -= HandleFieldChanged;
+        }
+
+        // Recreate EditContext with the new Model
+        _editContext = new EditContext(Model);
+
+        // Subscribe new handler
+        _editContext.OnFieldChanged += HandleFieldChanged;
+    }
+
+    private void HandleFieldChanged(object? sender, FieldChangedEventArgs e)
+    {
+        if (e.FieldIdentifier.FieldName == "TimeString")
+            return;
+        
+        _fieldErrors.Clear();
+        _fieldErrors[e.FieldIdentifier.FieldName] = null;
+
+        ValidationResult? result = e.FieldIdentifier.FieldName switch
+        {
+            nameof(Model.StartDate) => Model.ValidateStartDate(),
+            nameof(Model.EndDate) => Model.ValidateEndDate(),
+            nameof(Model.StartTime) => Model.ValidateStartTime(),
+            nameof(Model.EndTime) => Model.ValidateEndTime(),
+            _ => null
+        };
+
+        if (result != null && result != ValidationResult.Success)
+        {
+            _fieldErrors[e.FieldIdentifier.FieldName] = result.ErrorMessage;
+        }
+
+        _isValid = !_fieldErrors.Values.Any(v => !string.IsNullOrWhiteSpace(v));
+
+        _editContext.NotifyValidationStateChanged();
+        StateHasChanged();
+    }
+
+    private async Task HandleValidationBeforeSubmit()
+    {
+        _fieldErrors.Clear();
+
+        // Run all validations
+        var results = new List<ValidationResult?>
+    {
+        Model.ValidateStartDate(),
+        Model.ValidateEndDate(),
+        Model.ValidateStartTime(),
+        Model.ValidateEndTime()
+    };
+
+        foreach (var result in results)
+        {
+            if (result is not null && result != ValidationResult.Success && result.MemberNames.Any())
+            {
+                foreach (var member in result.MemberNames)
+                {
+                    _fieldErrors[member] = result.ErrorMessage;
+                }
+            }
+        }
+
+        _isValid = !_fieldErrors.Values.Any(v => !string.IsNullOrWhiteSpace(v));
+
+        if (!_isValid)
+        {
+            _editContext?.NotifyValidationStateChanged();
+            StateHasChanged();
+            return;
+        }
+
+        Console.WriteLine($"Start: {Model.StartDate} {Model.StartTime12HrDisplay}, End: {Model.EndDate} {Model.EndTime12HrDisplay}");
+        await OnSubmit.InvokeAsync(Model); //Handle OnSubmit, which runs HandleSubmit on ItineraryPlaces.razor
+    }
+
+    public void Dispose()
+    {
+        if (_editContext != null)
+            _editContext.OnFieldChanged -= HandleFieldChanged;
+    }
+}

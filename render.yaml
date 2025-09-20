@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: TailwindBlazorApp
+    env: dotnet
+    branch: main
+    plan: free
+    buildCommand: "dotnet publish TailwindBlazorApp.Server -c Release -o publish"
+    startCommand: "dotnet TailwindBlazorApp.Server.dll"
+    envVars:
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        sync: false
+      - key: DB_NAME
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+        sync: false

@@ -1,0 +1,118 @@
+﻿@using TailwindMauiBlazorApp.Shared.Models.ViewModels
+<input type="date"
+       value="@DateString"
+       class="@CssClass"
+       style="@Style"
+       @oninput="OnInput"
+       @onblur="OnBlurHandler"
+       @onkeydown="HandleKeyDown"
+       @onchange="OnDateChanged"
+       @onclick:stopPropagation
+       @onmousedown:stopPropagation
+       @onkeydown:stopPropagation />
+
+@code {
+    [Parameter] public string DateValue { get; set; } = "";
+    [Parameter] public EventCallback<string> DateValueChanged { get; set; }
+
+    // Pass the whole group
+    [Parameter] public PlaceGroupViewModel? Group { get; set; } = default!;
+
+    // Event to notify parent with old/new date and the group
+    [Parameter] public EventCallback<(PlaceGroupViewModel Group, string OldDate, string NewDate)> OnDateChangedWithOld { get; set; }
+
+    [Parameter] public string? CssClass { get; set; }
+    [Parameter] public string? Style { get; set; }
+
+    private string DateString { get; set; } = "";
+    private string? previousValue;
+    private bool inputChanged = false;
+
+    protected override void OnParametersSet()
+    {
+        if (DateValue != DateString)
+        {
+            DateString = DateValue;
+            previousValue ??= DateValue; // store old value on first render
+        }
+    }
+
+    private void OnInput(ChangeEventArgs e)
+    {
+        DateString = e.Value?.ToString() ?? "";
+        inputChanged = true;
+    }
+
+    // public bool IgnoreNextBlur { get; set; } = false;
+    private async Task OnBlurHandler(FocusEventArgs e)
+    {
+        // if (!inputChanged || IgnoreNextBlur)
+        if (!inputChanged)
+        {
+            // IgnoreNextBlur = false;
+            return;
+        }
+
+        var old = previousValue ?? DateValue;
+        var newVal = DateString;
+
+        if (DateTime.TryParse(DateString, out var parsedDate))
+            newVal = parsedDate.ToString("yyyy-MM-dd");
+
+        if (OnDateChangedWithOld.HasDelegate)
+            await OnDateChangedWithOld.InvokeAsync((Group, old, newVal));
+
+        previousValue = newVal;
+        await DateValueChanged.InvokeAsync(newVal);
+
+        inputChanged = false;
+    }
+
+    private bool typed = false;
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        typed = true;
+        if (e.Key == "Enter")
+        {
+            await CommitDateChange();
+        }
+    }
+
+    private async Task OnDateChanged(ChangeEventArgs e)
+    {
+        var newValue = e.Value?.ToString();
+
+        if (string.IsNullOrEmpty(newValue))
+        {
+            DateString = DateTime.Today.ToString("yyyy-MM-dd");
+            newValue = DateString;
+        }
+
+        //selected from calendar
+        if (!typed)
+        {
+            await DateValueChanged.InvokeAsync(newValue);
+        }
+
+        typed = false;
+    }
+
+    private async Task CommitDateChange()
+    {
+        if (!inputChanged)
+            return;
+
+        var newVal = DateString;
+
+        if (DateTime.TryParse(DateString, out var parsedDate))
+            newVal = parsedDate.ToString("yyyy-MM-dd");
+
+        if (OnDateChangedWithOld.HasDelegate)
+            await OnDateChangedWithOld.InvokeAsync((Group, previousValue ?? DateValue, newVal));
+
+        previousValue = newVal;
+        await DateValueChanged.InvokeAsync(newVal);
+
+        inputChanged = false;
+    }
+}

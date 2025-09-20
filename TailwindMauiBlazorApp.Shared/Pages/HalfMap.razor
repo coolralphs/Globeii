@@ -1,0 +1,32 @@
+﻿@page "/halfmap"
+@using TailwindMauiBlazorApp.Shared.Helpers
+@using TailwindMauiBlazorApp.Shared.Services
+@inject JsInterop JsInterop
+
+<PageTitle>Map Itinerary</PageTitle>
+
+<div id="@globeId" class="globe-container-half" style="height:50vh; width:100%; z-index:0;"></div>
+
+<div class="itinerary-container p-3">
+    <input class="form-control mb-3" placeholder="Search for places..." />
+    <h5>Your Itinerary</h5>
+    <ul>
+        <li>Lisbon</li>
+        <li>Porto</li>
+        <li>Sintra</li>
+    </ul>
+</div>
+
+@code {
+    private string globeId = "globeContainerHalf";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // await JsInterop.LoadScript("//cdn.jsdelivr.net/npm/globe.gl");
+            // await JsInterop.LoadScript("https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.min.js");
+            await JsInterop.CreateItineraryGlobe(globeId);
+        }
+    }
+}

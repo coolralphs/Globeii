@@ -1,0 +1,44 @@
+﻿@using TailwindMauiBlazorApp.Shared.Models.ViewModels
+
+@if (Group != null)
+{   
+    <div class="w-100 h-100 d-flex justify-content-center align-items-center px-2 bg-light">
+        <!-- Horizontal scroll area -->
+        <div id="scrollContainer"
+             class="d-flex flex-nowrap overflow-auto px-4 w-100 h-100"
+             style="scroll-snap-type: x mandatory; gap: 1rem; scroll-behavior: smooth; -webkit-overflow-scrolling: touch;">
+            @foreach (var place in Group?.ItineraryPlaces ?? new List<ItineraryPlaceViewModel>())
+            {
+                <div class="card flex-shrink-0"
+                     style="
+                              width: 80vw;
+                              max-width: 440px;
+                              height: 95%;
+                              scroll-snap-align: center;
+                              border-radius: 1.5rem;
+                              position: relative;
+                           ">
+                    <!-- Top Handle -->
+                    <div class="position-absolute top-0 start-50 translate-middle-x mt-2"
+                         style="width: 50px; height: 5px; background-color: #ccc; border-radius: 4px; z-index: 10;"></div>
+
+                    <div class="card-body mt-4 d-flex flex-column justify-content-between h-100">
+                        <div>
+                            <h5 class="card-title text-center">@place.Place.DisplayName</h5>
+                            <p class="card-text text-muted">Description</p>
+                        </div>
+                        <div class="text-center">
+                            <small class="text-secondary">Time: @place.StartTime</small>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}
+@code {
+    [Parameter]
+    public PlaceGroupViewModel? Group { get; set; }
+    [Parameter]
+    public EventCallback<PlaceGroupViewModel?> GroupChanged { get; set; }
+}

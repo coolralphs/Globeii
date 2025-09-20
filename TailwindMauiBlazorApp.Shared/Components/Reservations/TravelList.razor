@@ -1,0 +1,196 @@
+﻿@using BlazorBootstrap
+@using TailwindMauiBlazorApp.Core.Models.Enums
+@using TailwindMauiBlazorApp.Shared.Helpers
+@using TailwindMauiBlazorApp.Shared.Models.ViewModels
+@using TailwindMauiBlazorApp.Shared.Services
+@using static TailwindMauiBlazorApp.Shared.Helpers.DateHelper
+@inject JsInterop JsInterop
+@inject IIItineraryReservationService ItineraryReserevationService
+@inject IJSRuntime JS
+
+<div class="place-details" style="z-index:9998; max-height: 300px; overflow-y: auto;">
+    <ul class="list-group list-group-flush">
+        @foreach (var group in Reservations
+                .OrderBy(r => r.StartDate)
+                .GroupBy(r => r.StartDate.Date))   // group by date only
+        {
+            <!-- Header row for the date -->
+            <li class="list-group-item bg-secondary text-white fw-bold text-center">
+                @group.Key.ToString("dddd, MMM d yyyy")
+            </li>
+
+            @foreach (var item in group)
+            {
+                <li class="list-group-item p-2 text-white"
+                    style="cursor: pointer !important;"
+                    @onclick='() => ViewDetails(item)'
+                    title="Click To View Details">
+                    <div class="d-flex flex-column align-items-center w-100">
+                        @if (item.ReservationType == ReservationType.Travel)
+                        {
+                            <div class="text-truncate w-100 text-center">
+                                <i class="@item.ReservationSubType?.GetIconClass() me-1"></i>
+                                @item.DeparturePlace?.DisplayName
+                            </div>
+
+                            @if (item.StartTime != default)
+                            {
+                                <small class="text-muted">
+                                    @DateTime.Today.Add(item.StartTime).ToString("h:mm tt")
+                                </small>
+                            }
+
+                            <i class="bi bi-arrow-down"></i>
+
+                            <div class="text-truncate w-100 text-center">
+                                <i class="@item.ReservationSubType?.GetIconClass() me-1"></i>
+                                @item.DestinationPlace?.DisplayName
+                            </div>
+
+                            @if (item.EndTime != default)
+                            {
+                                <small class="text-muted">
+                                    @DateTime.Today.Add(item.EndTime).ToString("h:mm tt")
+                                    <sup>+@(TotalDays(item.StartDate, item.EndDate) - 1)</sup>
+                                </small>
+                            }
+                        }
+                        else if (item.ReservationType == ReservationType.Accomodation)
+                        {
+                            <div class="text-truncate w-100 text-center">
+                                <i class="@item.ReservationSubType?.GetIconClass() me-1"></i>
+                                @item.Place?.DisplayName
+                            </div>
+
+                            @if (item.StartTime != default)
+                            {
+                                <small class="text-muted">
+                                    @($"Check-In: {item.StartDate.ToShortDateString()} @ {DateTime.Today.Add(item.StartTime).ToString("h:mm tt")}")
+                                </small>
+                                <small class="text-muted">
+                                    @($"Check-Out: {item.EndDate.ToShortDateString()} @ {DateTime.Today.Add(item.EndTime).ToString("h:mm tt")}")
+                                </small>
+                            }
+                        }                        
+                        else
+                        {
+
+                            <div class="text-truncate w-100 text-center">
+                                @if (item.ReservationType == ReservationType.Activities)
+                                {
+                                    <i class="@item.ReservationSubType?.GetIconClass() me-1"></i>
+                                }
+                                else if (item.ReservationType == ReservationType.Dining)
+                                {
+                                    <i class="fa fa-cutlery me-1"></i>
+                                }
+                                else if (item.ReservationType == ReservationType.Pass)
+                                {
+                                    <i class="bi bi-qr-code me-1"></i>
+                                }
+                                else if (item.ReservationType == ReservationType.Other)
+                                {
+                                    <i class="fa fa-question-circle me-1"></i>
+                                }
+                                @item.Place?.DisplayName
+                            </div>
+
+                            @if (item.StartTime != default)
+                            {
+                                <small class="text-muted">
+                                    @DateTime.Today.Add(item.StartTime).ToString("h:mm tt")
+                                </small>
+                            }
+                        }
+                    </div>
+                </li>
+            }
+        }
+    </ul>
+</div>
+
+@if (ShowEditReservation)
+{
+    <div class="overlay" @onclick="CloseViewDetails">
+        <div class="edit-schedule-container" @onclick:stopPropagation="true">
+            <div class="popup-header">
+                <span class="popup-title">Reservation Details</span>
+                <button class="close-btn" @onclick="CloseViewDetails">×</button>
+            </div>
+
+            <div class="card-body">
+                <AddReservation Model="SelectedItem"
+                                OnSaveReservation="HandleReservationSave"
+                                OnModalOpen="HandleToggleFlag" />
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public List<ItineraryReservationViewModel> Reservations { get; set; } = new();
+    [Parameter]
+    public List<ReservationGroupViewModel> GroupedReservations { get; set; } = new();
+    [Parameter]
+    public EventCallback<ItineraryReservationViewModel> GroupedReservationsChanged { get; set; }
+    // [Parameter]
+    // public EventCallback<ItineraryReservationViewModel> OnGroupedReservationsChanged { get; set; }
+    [Parameter]
+    public int ItineraryId { get; set; }
+    [Parameter]
+    public ReservationType ReservationType { get; set; }
+    private ItineraryReservationViewModel SelectedItem { get; set; }
+    private bool ShowEditReservation = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // StateHasChanged();
+        }
+    }
+    private async Task ViewDetails(ItineraryReservationViewModel item)
+    {
+        SelectedItem = item;
+        ShowEditReservation = true;
+    }
+
+    private void CloseViewDetails()
+    {
+        SelectedItem = null;
+        ShowEditReservation = false;
+    }
+    private async Task HandleReservationSave(ItineraryReservationViewModel model)
+    {
+        if (GroupedReservationsChanged.HasDelegate)
+            await GroupedReservationsChanged.InvokeAsync(model);
+
+        CloseViewDetails();
+        StateHasChanged();
+        // if (OnGroupedReservationsChanged.HasDelegate)
+        //     await OnGroupedReservationsChanged.InvokeAsync(model);
+
+
+        // model.ItineraryId = ItineraryId;
+        // var newReservation = await ItineraryReserevationService.AddItineraryReservationAsync(model);
+        // Reservations.Add(newReservation);
+        // GroupedReservations = Reservations
+        //         .GroupBy(r => r.ReservationType)
+        //         .Select(g => new ReservationGroupViewModel
+        //         {
+        //             Type = g.Key,
+        //             Title = g.Key.GetTitle(),
+        //             Items = g.OrderBy(o => o.StartDate).ThenBy(t => t.StartTime).ToList()
+        //         })
+        //         .OrderBy(g => g.Type == ReservationType.Other ? 1 : 0)   // "Other" goes last
+        //         .ThenBy(g => g.Title)
+        //         .ToList();
+        // ShowEditReservation = false;
+        // StateHasChanged();
+    }
+    private void HandleToggleFlag()
+    {
+        // ShowDetails = false;
+    }
+}

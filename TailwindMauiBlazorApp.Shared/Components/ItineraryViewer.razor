@@ -1,0 +1,470 @@
+﻿@using TailwindMauiBlazorApp.Shared.Helpers
+@using static TailwindMauiBlazorApp.Shared.Helpers.DateHelper
+@using static TailwindMauiBlazorApp.Shared.Helpers.MiscDisplayHelper
+@using TailwindMauiBlazorApp.Shared.Models.ViewModels
+@using BlazorBootstrap
+
+<div class="p-1" style="z-index:1; padding-bottom: 0 !important;">
+
+    @*  <div class="d-flex justify-content-end mb-2">
+        <button class="btn btn-link p-0 d-flex align-items-center text-decoration-none"
+                @onclick="ToggleConfig"
+                aria-expanded="@isConfigOpen"
+                aria-controls="configCollapse">
+            <i class="bi bi-gear me-2"></i>
+            <strong>Filter</strong>
+            <i class="bi @(isConfigOpen ? "bi-chevron-up" : "bi-chevron-down") ms-2"></i>
+        </button>
+    </div> *@
+
+    @* @if (isConfigOpen)
+    { *@
+    @*  <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <strong>@ResultMessage</strong>
+            </div>
+        </div> *@
+
+    <div class="d-flex gap-2 p-1 rounded w-100 mb-1 time-config-container">
+        <div class="flex-grow-1 position-relative">
+            <!-- Input field -->
+            @* @oninput="e => TextFilter = e.Value?.ToString() ?? string.Empty" *@
+            <input type="text"
+                   placeholder="Search place name..."
+                   value="@TextFilter"
+                   @oninput="OnInput"
+                   class="form-control pe-5 w-100"
+                   @onblur="ChangeFilter"
+                   @onkeydown="HandleKeyDown" />
+
+            <!-- Clear button inside input (right-aligned) -->
+            @if (!string.IsNullOrEmpty(TextFilter))
+            {
+                <button type="button"
+                        class="btn btn-sm btn-outline-secondary position-absolute top-50 end-0 translate-middle-y me-2"
+                        style="padding: 0 0.4rem;"
+                        @onclick="ClearFilter">
+                    &times;
+                </button>
+            }
+        </div>
+
+        <!-- Search button on the far right -->
+        <button class="btn btn-primary"
+                @onclick="ApplyFilter">
+            <span class="bi bi-search"></span> Search
+        </button>
+    </div>
+    @* } *@
+
+
+    @if (FilteredGroupPlaces != null)
+    {
+        @foreach (var group in FilteredGroupPlaces.OrderBy(o => o.Date).ToList())
+        {
+            <div class="mb-4" style="z-index:1 !important;">
+                <div class="date-header d-inline-flex align-items-center mb-1" style="width: max-content; gap: 0.5rem; z-index:1 !important;">
+                    <i class="bi bi-calendar-week"></i>
+                    <label>@DateTime.Parse(group.Date).ToString("dddd, MMMM d, yyyy")</label>
+                </div>
+
+                <SortableList TItem="ItineraryPlaceViewModel"
+                              Group=""
+                              Name="@group.Date"
+                              Data="@group.ItineraryPlaces"
+                              Context="item"
+                              Style="z-index:1;"
+                              Class="sortable-container"
+                              Id="@($"sortable-{group.Date}")"
+                              AllowSorting="false">
+                    <ItemTemplate>
+                        <div style="min-height:60px; display:flex; align-items:center;">
+                            @{
+                                var index = group.ItineraryPlaces.IndexOf(item);
+                                DateTime itemDate = item.StartDate;
+                                string dayName = DaysOfWeek[(int)itemDate.DayOfWeek];
+                                string dayColor = DayColors.ContainsKey(dayName) ? DayColors[dayName] : "#999999";
+                            }
+
+                            <div class="d-flex align-items-center" style="gap: 8px; width: 100%; min-width: 0; box-sizing: border-box; justify-content: space-between;">
+                                <!-- Left part: thumbnail + title + time -->
+                                <div class="d-flex align-items-center" style="gap: 8px; min-width: 0;">
+
+                                    <div class="thumbnail-container p-1" style="flex-shrink: 0;">
+                                        <img src="@(item.Place.ThumbnailUrl ?? "https://placehold.co/400x300?text=No+Image")"
+                                             alt="@item.Place.DisplayName"
+                                             class="thumbnail"
+                                             style="width:60px; height:60px; object-fit:cover; border-radius:4px;"
+                                             @onclick='() => ShowImage(item.Place.ThumbnailUrl ?? "https://placehold.co/400x300?text=No+Image", item.Place.DisplayName)' />
+                                    </div>
+
+                                    <div class="d-flex flex-column ps-1" style="min-width:0; overflow:hidden;">
+                                        <div class="text-truncate fw-bold">
+                                            <i class="bi bi-geo-alt-fill" style="color:@dayColor"></i>
+                                            @item.Place.DisplayName
+                                        </div>
+                                        @if (item.Place.PrimaryTypeDisplayName is not null)
+                                        {
+                                            <div class="text-truncate small text-muted">
+                                                <i class="bi bi-binoculars-fill text-secondary"></i>
+                                                @item.Place.PrimaryTypeDisplayName
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            var priorityOrder = new List<string>
+                                                {
+                                                "tourist_attraction",
+                                                "historical_place"
+                                                };
+
+                                            string? displayType = null;
+
+                                            if (item.Place?.Types is not null && item.Place.Types.Any())
+                                            {
+                                                // Try to get from priority order
+                                                displayType = priorityOrder
+                                                .FirstOrDefault(p => item.Place.Types.Contains(p));
+
+                                                // If none matched, fallback to first available type
+                                                displayType ??= item.Place.Types.First();
+                                            }
+
+                                            if (!string.IsNullOrEmpty(displayType))
+                                            {
+                                                <div class="text-truncate small text-muted">
+                                                    <i class="bi bi-binoculars-fill text-secondary"></i>
+                                                    @ToDisplayName(displayType)
+                                                </div>
+                                            }
+                                        }
+
+                                        <div class="text-truncate small d-flex align-items-center" style="gap: 0.25rem;">
+                                            @* Star icons for double Rating *@
+                                            @for (int i = 1; i <= 5; i++)
+                                            {
+                                                var starColor = "#D4AF37"; // Softer gold for dark theme
+
+                                                if (item.Place.Rating >= i)
+                                                {
+                                                    <i class="bi bi-star-fill" style="color:@starColor"></i>  @* full star *@
+                                                }
+                                                else if (item.Place.Rating >= i - 0.5)
+                                                {
+                                                    <i class="bi bi-star-half" style="color:@starColor"></i>  @* half star *@
+                                                }
+                                                else
+                                                {
+                                                    <i class="bi bi-star" style="color:#555555"></i>  @* empty star *@
+                                                }
+                                            }
+
+                                            <span>@(item.Place.Rating.HasValue? item.Place.Rating.Value.ToString("0.0") : "0.0")</span>
+
+                                            @* Nullable user rating count *@
+                                            @if (item.Place.UserRatingCount.HasValue)
+                                            {
+                                                <span class="text-muted">(@FormatCount(item.Place.UserRatingCount.Value))</span>
+                                            }
+                                        </div>
+                                        @*  <div class="small d-flex align-items-center">
+                                            <i class="bi bi-clock-fill text-primary me-1"></i>
+                                            <span>@FormatTime(item.StartTime)</span>
+
+                                            @if (IsTimeOutsideOpeningHours(item.Place, item.StartDate, item.StartTime, out var error))
+                                            {
+                                                <i class="bi bi-exclamation-triangle-fill text-warning ps-2"></i>
+                                                <span class="small ps-1">@GetOpeningHours(item.Place, item.StartDate)</span>
+                                            }
+                                        </div> *@
+                                    </div>
+                                </div>
+
+                                <div class="d-flex flex-column align-items-end ms-auto" style="gap:4px; min-width:70px;">
+                                    <!-- Time in top-right -->
+                                    <div class="small text-muted pe-1">
+                                        <span>@FormatTime(item.StartTime)</span>
+                                    </div>
+
+                                    <!-- Bottom-right: icons + dropdown in one row -->
+                                    <div class="d-flex align-items-center justify-content-end gap-2">
+                                        <!-- Icons -->
+                                        @if ((!item.IsPaid && item.PrePaymentRequired) || (!item.IsBooked && item.BookingRequired))
+                                        {
+                                            <i class="bi bi-exclamation-triangle-fill text-danger" title="Needs payment or booking"></i>
+                                        }
+                                        @if (item.Notes is not null && item.Notes.Length > 0)
+                                        {
+                                            <i class="bi bi-sticky" style="color: #FFD966;" title="Has notes"></i>
+                                        }
+                                        @if (item.Url is not null && item.Url.Length > 0)
+                                        {
+                                            <i class="bi-link-45deg" title="Has URL"></i>
+                                        }
+                                        @if (item.IsBooked)
+                                        {
+                                            <i class="bi bi-qr-code" title="Is booked/reserved"></i>
+                                        }
+                                        @if (item.IsPaid)
+                                        {
+                                            <i class="bi bi-currency-dollar text-success" title="Is paid"></i>
+                                        }
+
+                                        <!-- Dropdown menu (same row as icons) -->
+                                        <div class="dropdown-wrapper" style="position: relative; overflow: visible; width: 36px; height: 36px; flex-shrink: 0; z-index: 3 !important;">
+                                            <button class="btn btn-primary d-flex align-items-center justify-content-center p-1"
+                                                    style="gap: 6px; width: 32px; height: 32px;"
+                                                    @onclick='() => OpenDetailsModal(item)'>
+                                                <span class="bi bi-list-ul"></span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </ItemTemplate>
+                </SortableList>
+            </div>
+        }
+    }
+
+</div>
+<!-- Overlay Popup -->
+@if (IsImageOpen)
+{
+    <div class="overlay" @onclick="CloseImage">
+        <div class="image-container" @onclick:stopPropagation="true">
+            <div class="popup-header">
+                <span class="popup-title">@ExpandedTitle</span>
+                <button class="close-btn" @onclick="CloseImage">×</button>
+            </div>
+            <img src="@ExpandedImageUrl" class="popup-img" />
+        </div>
+    </div>
+}
+
+@if (ShowDetails)
+{
+    <div class="overlay" @onclick="CloseDetails">
+        <div class="edit-schedule-container" @onclick:stopPropagation="true">
+            <div class="popup-header">
+                <span class="popup-title">@_expandedItem.Place.DisplayName</span>
+                <button class="close-btn" @onclick="CloseDetails">×</button>
+            </div>
+            <div class="card-body">
+                <ItineraryViewPlaceDetails ExpandedItem="@_expandedItem" />
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public List<PlaceGroupViewModel> GroupedPlaces { get; set; }
+    [Parameter]
+    public EventCallback<List<PlaceGroupViewModel>> GroupedPlacesChanged { get; set; }
+    public List<PlaceGroupViewModel> FilteredGroupPlaces { get; set; }
+    private ItineraryPlaceViewModel _expandedItem = new();
+    private bool IsImageOpen { get; set; }
+    private bool ShowDetails { get; set; }
+    private string? ExpandedImageUrl { get; set; }
+    private string? ExpandedTitle { get; set; }
+    private bool isConfigOpen = false;
+    private string TextFilter { get; set; } = "";
+    private int TotalResults => FilteredGroupPlaces.Sum(g => g.ItineraryPlaces.Count);
+    private string ResultMessage = string.Empty;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        await Task.Yield();
+
+        try
+        {
+            FilteredGroupPlaces = GroupedPlaces;
+        }
+        catch (Exception ex)
+        {
+
+        }
+    }
+
+    private void ShowImage(string url, string title)
+    {
+        ExpandedImageUrl = url;
+        ExpandedTitle = title;
+        IsImageOpen = true;
+    }
+
+    private void CloseImage()
+    {
+        IsImageOpen = false;
+        ExpandedImageUrl = null;
+        ExpandedTitle = null;
+    }
+
+    private void ToggleConfig()
+    {
+        isConfigOpen = !isConfigOpen;
+
+        // Optionally hide info when closing
+        if (!isConfigOpen)
+        {
+
+
+        }
+    }
+
+    private void ChangeFilter(FocusEventArgs e)
+    {
+        ApplyFilter(); // live filtering as you type
+    }
+
+    private void ClearFilter()
+    {
+        TextFilter = "";
+        ApplyFilter(); // reset filter
+    }
+
+    // private void ApplySearch()
+    // {
+    //     ApplyFilter(); // run the same filter logic when clicking search
+    // }
+
+    private void ApplyFilter()
+    {
+        if (string.IsNullOrWhiteSpace(TextFilter))
+        {
+            FilteredGroupPlaces = GroupedPlaces;
+        }
+        else
+        {
+            FilteredGroupPlaces = GroupedPlaces
+                .Select(g => new PlaceGroupViewModel
+                {
+                    Date = g.Date,
+                    ItineraryPlaces = g.ItineraryPlaces
+                        .Where(p => !string.IsNullOrEmpty(p.Place?.DisplayName)
+                                    && p.Place.DisplayName.Contains(TextFilter, StringComparison.OrdinalIgnoreCase))
+                        .ToList()
+                })
+                .Where(g => g.ItineraryPlaces.Any())
+                .ToList();
+        }
+
+        ResultMessage = $"{TotalResults} {(TotalResults == 1 ? "result" : "results")}";
+        if (!string.IsNullOrWhiteSpace(TextFilter))
+        {
+            ResultMessage += $" for \"{TextFilter}\"";
+        }
+    }
+
+    private void OnInput(ChangeEventArgs e)
+    {
+        TextFilter = e.Value?.ToString() ?? string.Empty;
+
+        // Call any method you want on every letter typed
+        ApplyFilter();
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            ApplyFilter();
+        }
+    }
+
+    private void OpenDetailsModal(ItineraryPlaceViewModel item)
+    {
+        _expandedItem = item.Clone();
+        ShowDetails = true;
+    }
+
+    private async Task CloseDetails()
+    {
+        ShowDetails = false;
+    }
+
+    // private string FormatTime(TimeSpan time)
+    // {
+    //     // Create a DateTime from the TimeSpan to use ToString with format
+    //     var dt = DateTime.Today.Add(time);
+    //     return dt.ToString("h:mm tt"); // 12-hour format, no seconds, AM/PM
+    // }
+
+   
+
+    private bool IsTimeOutsideOpeningHours(PlaceViewModel place, DateTime startDate, TimeSpan startTime, out string? errorMessage)
+    {
+        errorMessage = null;
+
+        var weekdayDescriptions = place?.RegularOpeningHours?.WeekdayDescriptions;
+        if (weekdayDescriptions == null || weekdayDescriptions.Count != 7)
+            return false; // no hours → treat as OK
+
+        int dayIndex = ((int)startDate.DayOfWeek + 6) % 7; // Monday=0, Sunday=6
+        var dayHours = weekdayDescriptions[dayIndex];
+
+        if (dayHours.Contains("Open 24 hours", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        var parts = dayHours.Split(':', 2);
+        if (parts.Length < 2) return false;
+
+        var range = parts[1].Trim();
+        var times = range.Split('–', StringSplitOptions.TrimEntries);
+        if (times.Length != 2) return false;
+
+        if (!DateTime.TryParse(times[0], out var start)) return false;
+        if (!DateTime.TryParse(times[1], out var end)) return false;
+
+        var startTimeSpan = start.TimeOfDay;
+        var endTimeSpan = end.TimeOfDay;
+
+        bool isOutside;
+
+        if (endTimeSpan >= startTimeSpan)
+        {
+            // Normal range, same day
+            isOutside = startTime < startTimeSpan || startTime > endTimeSpan;
+        }
+        else
+        {
+            // Overnight range (e.g., 10:00 AM – 2:25 AM next day)
+            isOutside = startTime < startTimeSpan && startTime > endTimeSpan;
+        }
+
+        if (isOutside)
+        {
+            errorMessage = $"Selected time {startTime:hh\\:mm} is outside opening hours ({times[0]} – {times[1]})";
+            return true;
+        }
+
+        return false;
+    }
+
+    private string? GetOpeningHours(PlaceViewModel place, DateTime startDate)
+    {
+        var weekdayDescriptions = place?.RegularOpeningHours?.WeekdayDescriptions;
+        if (weekdayDescriptions == null || weekdayDescriptions.Count != 7)
+            return null; // no hours available
+
+        int dayIndex = ((int)startDate.DayOfWeek + 6) % 7; // Monday=0, Sunday=6
+        var dayHours = weekdayDescriptions[dayIndex];
+
+        return string.IsNullOrWhiteSpace(dayHours) ? null : dayHours;
+    }
+
+    private string ToDisplayName(string type)
+    {
+        if (string.IsNullOrEmpty(type))
+            return string.Empty;
+
+        // Split by underscore, capitalize each word, then join
+        var words = type.Split('_')
+                        .Select(w => char.ToUpper(w[0]) + w.Substring(1));
+        return string.Join(" ", words);
+    }
+}

@@ -1,0 +1,98 @@
+﻿@using BlazorBootstrap
+@using TailwindMauiBlazorApp.Shared.Helpers
+@using TailwindMauiBlazorApp.Shared.Models.ViewModels
+@inject JsInterop JsInterop
+@inject IJSRuntime JS
+
+@if (IsEditMode)
+{
+    <label class="pb-1">Date: @GroupDate</label>
+}
+
+<div class="place-details" style="z-index:9998; max-height: 300px; overflow-y: auto;">
+    <ul class="list-group list-group-flush">
+
+        @if (IsEditMode)
+        {
+            <!-- Select All row -->
+            <li class="list-group-item p-2 bg-dark text-white">
+                <div class="d-flex align-items-center">
+                    <input type="checkbox"
+                           class="form-check-input me-2 align-middle"
+                           style="vertical-align: middle !important; margin-bottom:5px;"
+                           @bind="_selectAllChecked"
+                           @bind:after="ToggleSelectAll" />
+                    <span class="align-middle">Select All</span>
+                </div>
+            </li>
+        }
+
+        <!-- Saved places -->
+        @foreach (var item in SavedPlaces.ToList())
+        {
+            <li class="list-group-item p-2 text-white">
+                <div class="d-flex align-items-center">
+                    @if (IsEditMode)
+                    {
+                        <input type="checkbox"
+                               class="form-check-input me-2 align-middle"
+                               style="vertical-align: middle !important; margin-bottom:5px;"
+                               @bind="item.IsSelected" />
+                    }
+                    <span class="text-truncate align-middle" title="@item.Place.DisplayName">
+                        @item.Place.DisplayName
+                    </span>
+                </div>
+            </li>
+        }
+    </ul>
+</div>
+
+@if (IsEditMode)
+{
+    <!-- Save button and message -->
+    <div class="mt-2 d-flex justify-content-between align-items-center">
+        <div class="text-start small text-muted">
+            <em>Places will be added at the end of the day.</em>
+        </div>
+        <div class="text-end">
+            <button class="btn btn-sm btn-primary" @onclick="Save">
+                Add Selected
+            </button>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public EventCallback<List<ItineraryPlaceViewModel>> OnSave { get; set; }
+    [Parameter]
+    public List<ItineraryPlaceViewModel> SavedPlaces { get; set; } = new();
+    [Parameter]
+    public string? GroupDate { get; set; }
+    [Parameter]
+    public bool IsEditMode { get; set; }
+    private bool _selectAllChecked;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            StateHasChanged();
+        }
+    }
+
+    private void ToggleSelectAll()
+    {
+        foreach (var place in SavedPlaces)
+        {
+            place.IsSelected = _selectAllChecked;
+        }
+    }
+
+    private async Task Save()
+    {
+        await OnSave.InvokeAsync(SavedPlaces);
+    }
+
+}

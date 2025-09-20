@@ -1,0 +1,416 @@
+﻿@using BlazorBootstrap
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.EntityFrameworkCore
+@using TailwindMauiBlazorApp.Core.Data
+@using TailwindMauiBlazorApp.Core.Models.Entities
+@using TailwindMauiBlazorApp.Shared.Models.Enums
+@using TailwindMauiBlazorApp.Shared.Models.ViewModels
+@using TailwindMauiBlazorApp.Shared.Services
+@using static TailwindMauiBlazorApp.Shared.Pages.Itinerary.ItineraryPlaces
+@using static TailwindMauiBlazorApp.Shared.Helpers.DateHelper
+@inject AppDbContext db
+@inject IIItineraryService ItineraryService
+
+<div class="itinerary-edit-container">
+    @if (editContext != null && editableItinerary != null)
+    {
+        <EditForm EditContext="@editContext" OnValidSubmit="SaveAsync">
+            <DataAnnotationsValidator />
+
+            <div class="mb-3">
+
+                <!-- Label for itinerary name -->
+                <label for="itineraryName" class="form-label fw-semibold">
+                    <i class="bi bi-geo-alt-fill me-1"></i>
+                    Itinerary Name
+                </label>
+
+                <div class="input-group">
+                    <button type="button" class="btn btn-outline-secondary rounded-circle d-flex align-items-center justify-content-center"
+                            style="width: 36px; height: 36px;  padding:0px  !important;"
+                            @onclick="ViewItinerary">
+                        <i class="bi bi-eye d-flex align-items-center justify-content-center"></i>
+                    </button>
+
+                    <input @bind="editableItinerary.Name"
+                           @ref="nameInputRef"
+                           class="@GetNameInputCss() ms-1"
+                           placeholder="Itinerary Name"
+                           disabled="@(!isEditing)" />
+
+                    <button type="button" class="btn btn-outline-secondary ms-2" @onclick="ToggleEdit">
+                        @if (!isEditing)
+                        {
+                            <i class="bi bi-pencil me-1"></i>
+                            <label>Edit</label>
+                        }
+                        else
+                        {
+                            <i class="bi bi-check2-circle me-1"></i>
+                            <label>Save</label>
+                        }
+                    </button>
+                </div>
+
+                <ValidationMessage For="@(() => editableItinerary.Name)" />
+
+                @if (duplicateName)
+                {
+                    <div class="invalid-feedback d-block">
+                        @errorMessage
+                    </div>
+                }
+
+            </div>
+
+            <div class="mb-3">
+                <!-- Label for itinerary details -->
+                <label for="itineraryName" class="form-label fw-semibold">
+                    <i class="fa-solid fa-calendar-days" style="margin-left:1.5px; margin-right:4.5px;"></i>
+                    Itinerary Dates
+                </label>
+                <div class="input-group">
+                    <div>@FormatDateRange(StartDate, EndDate) @($"({TotalDays(StartDate, EndDate)}-day trip)")</div>
+                </div>
+            </div>
+
+            <div class="mb-3 d-flex align-items-center">
+                <label for="itineraryName" class="form-label fw-semibold me-2 mb-0">
+                    <i class="bi bi-qr-code me-1"></i>
+                    Reservations (@Reservations.Count())
+                </label>
+
+                <div class="gap-1">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="AddReservation">
+                        <i class="bi bi-plus"></i> Add New
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="ShowReservations">
+                        <i class="bi bi-eye"></i> Show List
+                    </button>
+                </div>
+                @*   <div>
+                    @if (Reservations.Count() > 0)
+                    {
+                        <button type="button" class="btn btn-sm btn-outline-secondary me-1" @onclick="ShowReservations">
+                            <i class="bi bi-eye"></i> Show Reservations
+                        </button>
+                    }
+
+                </div> *@
+
+                @* <label for="itineraryName" class="form-label fw-semibold">
+                    <i class="fa-solid fa-bed me-1" style="font-size: 0.85rem;"></i>
+                    Accomodations (@Accomodations.Count())
+                </label>
+
+                <div>
+                    @if (Accomodations.Count() > 0)
+                    {
+                        <button type="button" class="btn btn-sm btn-outline-secondary me-1" @onclick="ShowAccomodations">
+                            <i class="bi bi-list-ul"></i> Show Details
+                        </button>
+                    }
+                    <button type="button" class="btn btn-sm btn-success me-1" @onclick="AddAccomodation">
+                        <i class="bi bi-plus-lg"></i> Add
+                    </button>
+                    @if (GetAccommodationGapStrings().Any())
+                    {
+                        <button type="button" class="btn btn-sm btn-danger" @onclick="ToggleMissingNights">
+                            <i class="bi bi-exclamation-triangle"></i> Missing Nights
+                        </button>
+
+                        @if (showMissingNights)
+                        {
+                            <div class="mb-3 mt-2">
+                                <label class="form-label fw-semibold">
+                                    <i class="bi bi-exclamation-triangle me-1"></i>
+                                    Missing Nights
+                                </label>
+                                <ul class="list-group">
+                                    @foreach (var gap in GetAccommodationGapStrings())
+                                    {
+                                        <li class="list-group-item list-group-item-warning">
+                                            @gap
+                                        </li>
+                                    }
+                                </ul>
+                            </div>
+                        }
+                    }
+                </div> *@
+            </div>
+
+            <div class="mb-3">
+
+                @if (GetDateGaps(StartDate, EndDate, Reservations.Where(w => w.ReservationType == Core.Models.Enums.ReservationType.Accomodation).ToList()).Any())
+                {
+                    <label for="itineraryName" class="form-label fw-semibold">
+                        <i class="fa fa-exclamation-triangle text-danger me-1"></i>
+                        Alerts
+                    </label>
+                    <div>
+                        <button type="button" class="btn btn-sm btn-danger" @onclick="ViewMissingNights">
+                            <i class="bi bi-eye"></i> Missing Nights
+                        </button>
+
+                        @* @if (showMissingNights)
+                        {
+                            <div class="mb-3 mt-2">
+                                <label class="form-label fw-semibold">
+                                    <i class="bi bi-exclamation-triangle me-1"></i>
+                                    Missing Nights
+                                </label>
+                                <ul class="list-group">
+                                    @foreach (var gap in GetAccommodationGapStrings())
+                                    {
+                                        <li class="list-group-item list-group-item-warning">
+                                            @gap
+                                        </li>
+                                    }
+                                </ul>
+                            </div>
+                        } *@
+                    </div>
+                }
+            </div>
+        </EditForm>
+    }
+    else
+    {
+        <p>Loading...</p>
+    }
+    @if (showSuccessMessage)
+    {
+        <div class="alert alert-success mt-2" role="alert" style="position: fixed; top: 1rem; right: 1rem; z-index: 1050;">
+            @successMessage
+        </div>
+    }
+</div>
+
+
+
+@code {
+    private EditContext editContext;
+    [Parameter] public EventCallback<string> OnItineraryNameChanged { get; set; }
+    [Parameter] public EventCallback<MenuOption> OnOpenAddReservation { get; set; }
+    [Parameter] public EventCallback<MenuOption> OnOpenScreen { get; set; }
+    [Parameter] public EventCallback<MenuOption> OnShowAlert { get; set; }
+    // [Parameter] public EventCallback<MenuOption> OnAddAccomodation { get; set; }
+    // [Parameter] public EventCallback<MenuOption> OnShowAccomodations { get; set; }
+    // [Parameter] public EventCallback<MenuOption> OnViewItinerary { get; set; }
+    [Parameter] public int ItineraryId { get; set; }
+    [Parameter] public DateTime? StartDate { get; set; }
+    [Parameter] public DateTime? EndDate { get; set; }
+    [Parameter] public List<ItineraryAccomodationViewModel> Accomodations { get; set; }
+    [Parameter] public List<ItineraryReservationViewModel> Reservations { get; set; }
+    private ElementReference nameInputRef;
+    private Itinerary editableItinerary = new();
+    private Dropdown dailyDropdown;
+    private bool hasMissingDays = false;
+    private bool isEditing = false;
+    private bool duplicateName = false;
+    private string errorMessage = "";
+    private string originalName = "";
+    private bool showSuccessMessage = false;
+    private bool ShowMissingNights = false;
+    private string successMessage = "Itinerary saved successfully!";
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        editableItinerary = await db.Itineraries.FindAsync(ItineraryId) ?? new Itinerary();
+
+        originalName = editableItinerary.Name;
+        editContext = new EditContext(editableItinerary);
+    }
+
+    private async void ToggleEdit()
+    {
+        if (!isEditing)
+        {
+            isEditing = true;
+            await Task.Yield();
+            await nameInputRef.FocusAsync();
+        }
+        else
+        {
+            await SaveAsync();
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        duplicateName = false;
+        errorMessage = "";
+
+        if (!editContext.Validate())
+        {
+            return;
+        }
+
+        var trimmedName = editableItinerary.Name?.Trim() ?? "";
+        editableItinerary.Name = trimmedName;
+
+        if (!string.Equals(originalName, trimmedName, StringComparison.OrdinalIgnoreCase))
+        {
+            bool exists = await db.Itineraries
+                .AnyAsync(i => i.Name.ToLower() == trimmedName.ToLower() && i.Id != ItineraryId);
+
+            if (exists)
+            {
+                duplicateName = true;
+                errorMessage = "*Itinerary name already exists. Please choose a different name.";
+                StateHasChanged();
+                return;
+            }
+        }
+
+        // await ItineraryService.UpdateAsync(editableItinerary);
+
+        db.Itineraries.Update(editableItinerary);
+        await db.SaveChangesAsync();
+
+        originalName = editableItinerary.Name;
+        isEditing = false;
+
+        await OnItineraryNameChanged.InvokeAsync(editableItinerary.Name);
+
+        // Show success message
+        showSuccessMessage = true;
+        StateHasChanged();
+
+        // Hide it after 3 seconds
+        await Task.Delay(3000);
+        showSuccessMessage = false;
+        StateHasChanged();
+    }
+
+    private string GetNameInputCss()
+    {
+        var baseClass = "form-control";
+
+        if (duplicateName)
+            return $"{baseClass} is-invalid border-danger";
+
+        if (string.IsNullOrEmpty(editableItinerary.Name))
+        {
+            return $"{baseClass} is-invalid border-danger";
+        }
+
+        if (isEditing &&
+            !string.Equals(editableItinerary.Name, originalName, StringComparison.OrdinalIgnoreCase))
+            return $"{baseClass} border-success";
+
+
+
+        return baseClass;
+    }
+
+    private async Task AddAccomodation()
+    {
+        if (OnOpenScreen.HasDelegate)
+        {
+            await OnOpenScreen.InvokeAsync(MenuOption.Accomodations);
+        }
+    }
+
+    private async Task ShowAccomodations()
+    {
+        if (OnOpenScreen.HasDelegate)
+        {
+            await OnOpenScreen.InvokeAsync(MenuOption.AccomodationEditor);
+        }
+    }
+
+    private async Task AddReservation()
+    {
+        if (OnOpenAddReservation.HasDelegate)
+        {
+            await OnOpenAddReservation.InvokeAsync();
+        }
+    }
+
+    // [Parameter] public EventCallback<(MenuOption, bool)> OnOpenScreen { get; set; }
+
+
+
+    private async Task ShowReservations()
+    {
+        if (OnOpenScreen.HasDelegate)
+        {
+            await OnOpenScreen.InvokeAsync(MenuOption.Reservations);
+        }      
+    }
+
+    private async Task ViewItinerary()
+    {
+        if (OnOpenScreen.HasDelegate)
+        {
+            await OnOpenScreen.InvokeAsync(MenuOption.ScheduleViewer);
+        }
+    }
+
+    // private bool showMissingNights = false;
+    // private void ToggleMissingNights()
+    // {
+    //     showMissingNights = !showMissingNights;
+    // }
+
+    private async Task ViewMissingNights()
+    {
+        if (OnShowAlert.HasDelegate)
+        {
+            await OnShowAlert.InvokeAsync();
+        }
+    }
+
+    // private void CloseMissingNights()
+    // {
+    //     // ShowMissingNights = false;
+    // }
+
+    // public List<string> GetAccommodationGapStrings()
+    // {
+    //     var gaps = new List<string>();
+
+    //     var accomodations = Reservations.Where(w => w.ReservationType == Core.Models.Enums.ReservationType.Accomodation).ToList();
+
+    //     if (!accomodations.Any())
+    //     {
+    //         // Entire itinerary is a gap
+    //         gaps.Add($"{StartDate:MM/dd/yyyy}-{EndDate:MM/dd/yyyy}");
+    //         return gaps;
+    //     }
+
+    //     // Sort accommodations by StartDate
+    //     var sorted = accomodations.OrderBy(a => a.StartDate).ToList();
+
+    //     // Gap before first accommodation
+    //     var firstStart = sorted.First().StartDate.Date;
+    //     if (StartDate < firstStart)
+    //     {
+    //         gaps.Add($"{StartDate:MM/dd/yyyy}-{firstStart:MM/dd/yyyy}");
+    //     }
+
+    //     // Gaps between accommodations
+    //     for (int i = 0; i < sorted.Count - 1; i++)
+    //     {
+    //         var currentEnd = sorted[i].EndDate.Date;
+    //         var nextStart = sorted[i + 1].StartDate.Date;
+
+    //         if (currentEnd < nextStart) // gap exists
+    //         {
+    //             gaps.Add($"{currentEnd:MM/dd/yyyy}-{nextStart:MM/dd/yyyy}");
+    //         }
+    //     }
+
+    //     // Gap after last accommodation
+    //     var lastEnd = sorted.Last().EndDate.Date;
+    //     if (lastEnd < EndDate)
+    //     {
+    //         gaps.Add($"{lastEnd:MM/dd/yyyy}-{EndDate:MM/dd/yyyy}");
+    //     }
+
+    //     return gaps;
+    // }
+}

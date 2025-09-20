@@ -1,0 +1,810 @@
+﻿@using BlazorBootstrap
+@using TailwindMauiBlazorApp.Core.Models.Enums
+@using TailwindMauiBlazorApp.Shared.Helpers
+@using TailwindMauiBlazorApp.Shared.Models.ViewModels
+@using TailwindMauiBlazorApp.Shared.Services
+@inject JsInterop JsInterop
+@inject IIPlaceService PlaceService
+@inject IJSRuntime JS
+
+<div class="place-details d-flex flex-column"
+     style="z-index:9998; max-height:64vh; min-height:450px; overflow:hidden;">
+
+    <div class="flex-grow-1 overflow-auto">
+        <Tabs @ref="tabs" OnShown="@(args => OnTabShown(args))">
+            <Tab Title="Place Info" Name="0" Active="true">
+                <Content>
+                    <div class="m-2">
+                        <label class="form-label"><strong>Reservation Type:</strong></label>
+                        <div class="d-flex align-items-start">
+                            <select @onchange="ReservationTypeChanged"
+                                    class="form-select form-select-sm me-2">
+                                @foreach (var type in Enum.GetValues<ReservationType>()
+                                                                .OrderBy(t => t.GetTitle() == "Other" ? 1 : 0)
+                                                                .ThenBy(t => t.GetTitle()))
+                                {
+                                    <option value="@type" selected="@(ChangedModel.ReservationType == type)">
+                                        @type.GetTitle()
+                                    </option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+
+                    @if (GetSubTypes(ChangedModel.ReservationType).Any())
+                    {
+                        <div class="m-2">
+                            <label class="form-label"><strong>Reservation SubType:</strong></label>
+                            <div class="d-flex align-items-start">
+                                <select @bind="ChangedModel.ReservationSubType"
+                                        class="form-select form-select-sm me-2">
+                                    @foreach (var subType in GetSubTypes(ChangedModel.ReservationType))
+                                    {
+                                        <option value="@subType">@subType.GetTitle()</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+                    }
+
+                    @if (ChangedModel.ReservationType == ReservationType.Travel)
+                    {
+                        <div class="m-2">
+                            <label class="form-label"><strong>Departure Place:</strong></label>
+                            <div class="d-flex align-items-center">
+                                <TextInput @bind-Value="DeparturePlaceName"
+                                           class="form-control form-control-sm me-1" Disabled />
+
+                                <button type="button" class="btn btn-outline-secondary btn-sm me-1"
+                                        title="Open in browser"
+                                        @onclick='() => OpenAddReservationModal(2)'>
+                                    <i class="bi bi-search"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="m-2">
+                            <label class="form-label"><strong>Destination Place:</strong></label>
+                            <div class="d-flex align-items-center">
+                                <TextInput @bind-Value="DestinationPlaceName"
+                                           class="form-control form-control-sm me-1" Disabled />
+
+                                <button type="button" class="btn btn-outline-secondary btn-sm me-1"
+                                        title="Open in browser"
+                                        @onclick='() => OpenAddReservationModal(3)'>
+                                    <i class="bi bi-search"></i>
+                                </button>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="m-2">
+                            <label class="form-label"><strong>Location:</strong></label>
+                            <div class="d-flex align-items-center">
+                                <TextInput @bind-Value="PlaceName"
+                                           class="form-control form-control-sm me-1" Disabled />
+
+                                <button type="button" class="btn btn-outline-secondary btn-sm me-1"
+                                        title="Open in browser"
+                                        @onclick='() => OpenAddReservationModal(1)'>
+                                    <i class="bi bi-search"></i>
+                                </button>
+                            </div>
+                        </div>
+                    }
+
+                    @if (ChangedModel.ReservationType == ReservationType.Activities)
+                    {
+
+                        <div class="m-2">
+                            <label class="form-label"><strong>Pickup Location:</strong></label>
+                            <div class="d-flex align-items-start">
+                                <InputTextArea @bind-Value="ChangedModel.PickupLocation"
+                                               class="form-control form-control-sm me-2"
+                                               rows="2"
+                                               placeholder="Pickup address" />
+                            </div>
+                        </div>
+
+                        <div class="m-2">
+                            <label class="form-label"><strong>Drop-off Location:</strong></label>
+                            <div class="d-flex align-items-start">
+                                <InputTextArea @bind-Value="ChangedModel.DropOffLocation"
+                                               class="form-control form-control-sm me-2"
+                                               rows="2"
+                                               placeholder="Drop-off address" />
+                            </div>
+                        </div>
+
+                    }
+
+                </Content>
+            </Tab>
+            <Tab Title="Date & Time" Name="1">
+                <Content>
+                    <div class="m-2">
+                        <label class="form-label">
+                            <strong>
+                                @(ChangedModel.ReservationType == ReservationType.Accomodation
+                                                                ? "Check-In Date:"
+                                                                : ChangedModel.ReservationType == ReservationType.Travel
+                                                                ? "Departure Date:"
+                                                                : "Start Date:")
+                            </strong>
+                        </label>
+                        <div class="d-flex align-items-start">
+                            <div class="mb-2">
+                                <InputDate @bind-Value="ChangedModel.StartDate"
+                                           class="form-control form-control-sm me-2"
+                                           @oninput="StartDateChanged" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="m-2">
+                        <label class="form-label">
+                            <strong>
+                                @(ChangedModel.ReservationType == ReservationType.Accomodation
+                                                                ? "Check-In Time:"
+                                                                : ChangedModel.ReservationType == ReservationType.Travel
+                                                                ? "Departure Time:"
+                                                                : "Start Time:")
+                            </strong>
+                        </label>
+                        <div class="d-flex align-items-start">
+                            <InputTimeSpan @bind-Value="ChangedModel.StartTime" CssClass="form-control form-control-sm me-2" />
+                        </div>
+                    </div>
+
+                    @if (ChangedModel.ReservationType == ReservationType.Travel || ChangedModel.ReservationType == ReservationType.Accomodation)
+                    {
+                        <div class="m-2">
+                            <label class="form-label"><strong>@(ChangedModel.ReservationType == ReservationType.Accomodation ? "Check-Out Date:" : "Arrival Date:")</strong></label>
+                            <div class="d-flex align-items-start">
+                                <div class="mb-2">
+                                    <InputDate @bind-Value="ChangedModel.EndDate"
+                                               class="form-control form-control-sm me-2"
+                                               @oninput="EndDateChanged" />
+                                    @if (dateError is not null)
+                                    {
+                                        <div class="text-danger small mt-1">@dateError</div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="m-2">
+                            <label class="form-label"><strong>@(ChangedModel.ReservationType == ReservationType.Accomodation ? "Check-Out Time:" : "Arrival Time:")</strong></label>
+                            <div class="d-flex align-items-start">
+                                <InputTimeSpan @bind-Value="ChangedModel.EndTime" CssClass="form-control form-control-sm me-2" />
+                            </div>
+                        </div>
+                    }
+
+                </Content>
+            </Tab>
+            <Tab Title="Booking Info" Name="2">
+                <Content>
+                    <div class="m-2">
+                        <label class="form-label"><strong>Booking Agency Name:</strong></label>
+                        <div class="d-flex align-items-start">
+                            <InputText @bind-Value="ChangedModel.ProviderName"
+                                       class="form-control form-control-sm me-2"
+                                       placeholder="e.g. American Airlines, Expedia, Omio" />
+                        </div>
+                    </div>
+
+                    <div class="m-2">
+                        <label class="form-label"><strong>Booking Reference:</strong></label>
+                        <div class="d-flex align-items-start">
+                            <InputText @bind-Value="ChangedModel.BookingReference"
+                                       class="form-control form-control-sm me-2"
+                                       placeholder="Optional" />
+                        </div>
+
+                    </div>
+
+                    <div class="m-2">
+                        <label class="form-label"><strong>Confirmation Number:</strong></label>
+                        <div class="d-flex align-items-start">
+                            <InputText @bind-Value="ChangedModel.ConfirmationNumber"
+                                       class="form-control form-control-sm me-2"
+                                       placeholder="Optional" />
+                        </div>
+                    </div>
+
+                    <div class="m-2">
+                        <label class="form-label"><strong>Party Size:</strong></label>
+                        <div class="d-flex align-items-start">
+                            <InputNumber @bind-Value="ChangedModel.PartySize"
+                                         class="form-control form-control-sm me-2" />
+                        </div>
+                    </div>
+
+                    <div class="m-2">
+                        <label class="form-label"><strong>Date Booked:</strong></label>
+                        <div class="d-flex align-items-start">
+                            <InputDate @bind-Value="ChangedModel.BookingDate"
+                                       class="form-control form-control-sm me-2" />
+                        </div>
+                    </div>
+
+                </Content>
+            </Tab>
+            <Tab Title="Misc" Name="3">
+                <Content>
+                    <div class="m-2">
+                        <label class="form-label"><strong>URL:</strong></label>
+                        <div class="d-flex align-items-center">
+                            <TextInput @bind-Value="ChangedModel.Url"
+                                       class="form-control form-control-sm me-2"
+                                       Placeholder="e.g. https://website.com" />
+
+                            <!-- Open in browser -->
+                            <button type="button" class="btn btn-outline-secondary btn-sm me-1"
+                                    title="Open in browser"
+                                    @onclick="() => OpenUrl(ChangedModel.Url)">
+                                <i class="bi bi-box-arrow-up-right"></i>
+                            </button>
+
+                            <!-- Copy to clipboard -->
+                            <button type="button" class="btn btn-outline-secondary btn-sm me-2"
+                                    title="Copy to clipboard"
+                                    @onclick="() => CopyUrl(ChangedModel.Url)">
+                                <i class="bi bi-copy"></i>
+                            </button>
+
+                            <!-- Copied message only for URL -->
+                            <div class="ms-auto">
+                                @if (copiedUrl)
+                                {
+                                    <small class="text-success">Copied!</small>
+                                }
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="m-2 form-check">
+                        <InputCheckbox @bind-Value="ChangedModel.IsAvailableInApp" class="form-check-input me-2" id="isAvailableInApp" />
+                        <label class="form-check-label" for="isAvailableInApp"><strong>Reservation Available In App</strong></label>
+                    </div>
+
+                    <div class="m-2 form-check">
+                        <InputCheckbox @bind-Value="ChangedModel.HasMeal" class="form-check-input me-2" id="isAvailableInApp" />
+                        <label class="form-check-label" for="isAvailableInApp">
+                            @if (ChangedModel.ReservationType == ReservationType.Accomodation)
+                            {
+                                <strong>Breakfast Included</strong>
+                            }
+                            else
+                            {
+                                <strong>Meal(s) Included</strong>
+                            }
+                        </label>
+                    </div>
+
+                    <div class="m-2">
+                        <label class="form-label"><strong>Status:</strong></label>
+                        <div class="d-flex align-items-start">
+                            <InputSelect @bind-Value="ChangedModel.Status"
+                                         class="form-select form-select-sm me-2">
+                                @foreach (var status in Enum.GetValues(typeof(ItineraryReservationStatus)).Cast<ItineraryReservationStatus>())
+                                {
+                                    <option value="@status">@status</option>
+                                }
+                            </InputSelect>
+                        </div>
+                    </div>
+
+                    <div class="m-2">
+                        <label class="form-label"><strong>Notes:</strong></label>
+                        <div class="d-flex align-items-start">
+                            <InputTextArea @bind-Value="ChangedModel.Notes"
+                                           class="form-control form-control-sm me-2"
+                                           rows="3" />
+                        </div>
+                    </div>
+
+                </Content>
+            </Tab>
+        </Tabs>
+    </div>
+
+    <div class="d-flex justify-content-end mt-3 gap-1">
+        @if (activeTabIndex == 0)
+        {
+            <Button Color="ButtonColor.Primary" @onclick="() => ShowTabByIndexAsync(1)">Next</Button>
+        }
+        else if (activeTabIndex == 3) // last tab
+        {
+            <Button Color="ButtonColor.Danger" @onclick="DeleteReservation">
+                <i class="bi bi-trash me-1"></i> Delete
+            </Button>
+
+            <Button Color="ButtonColor.Primary" @onclick="() => ShowTabByIndexAsync(-1)">Back</Button>
+            <Button Color="ButtonColor.Primary" @onclick="Save">Save</Button>
+        }
+        else
+        {
+            <Button Color="ButtonColor.Primary" @onclick="() => ShowTabByIndexAsync(-1)" Disabled="@(dateError is not null)">Back</Button>
+            <Button Color="ButtonColor.Primary" @onclick="() => ShowTabByIndexAsync(1)" Disabled="@(dateError is not null)">Next</Button>
+        }
+    </div>
+
+</div>
+
+@if (showAutoComplete)
+{
+    <div class="overlay-2" @onclick="CloseAddReservation">
+        <div class="edit-schedule-container-2" @onclick:stopPropagation="true">
+            <div class="popup-header">
+                <span class="popup-title">Search Place</span>
+                <button class="close-btn" @onclick="CloseAddReservation">×</button>
+            </div>
+
+            <div class="card-body-2">
+                <div class="place-details-2" style="z-index:99999 !important; max-height: 60vh; overflow-y: auto;">
+                    <div id="reservationAutoComplete" style="position: sticky; top: 0; z-index: 1; "></div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (selectedPlace is not null)
+{
+    <PlaceForm @ref="placeFormRef" SelectedPlace="@selectedPlace" />
+}
+
+<ConfirmDialog @ref="Dialog" Id="confirmModal" Style="z-index:9999;" />
+
+@code {
+    [Parameter]
+    public ItineraryReservationViewModel Model { get; set; } = new();
+    public ItineraryReservationViewModel ChangedModel { get; set; } = new();
+    [Parameter]
+    public EventCallback<ItineraryReservationViewModel> OnSaveReservation { get; set; }
+    [Parameter]
+    public EventCallback<ItineraryReservationViewModel> OnDeleteReservation { get; set; }
+    [Parameter]
+    public EventCallback<bool> OnModalOpen { get; set; }
+    private DotNetObjectReference<AddReservation>? objRef;
+    private PlaceForm? placeFormRef;
+    private PlaceViewModel? selectedPlace;
+    private PlaceViewModel? pendingPlace;
+    public ConfirmDialog? Dialog { get; set; }
+    private Tabs tabs = default!;
+    private int activeTabIndex = 0;
+    private int AutoCompleteField;
+    private string PlaceName = string.Empty;
+    private string DeparturePlaceName = string.Empty;
+    private string DestinationPlaceName = string.Empty;
+    private string? dateError;
+    private bool copiedAddress;
+    private bool copiedUrl;
+    private bool showAutoComplete;
+    private bool initPending;
+    private bool isInvalid;
+    private int previousIndex = 0;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (isInvalid)
+        {
+            isInvalid = false;
+            await ShowTabByIndexAsync(previousIndex, true);
+        }
+
+        if (initPending)
+        {
+            initPending = false;
+            await JsInterop.InitAutocompleteElementById(objRef, "reservationAutoComplete");
+        }
+
+        if (firstRender)
+        {
+            ChangedModel = Model.Clone();
+
+            if (Model.Place is not null)
+            {
+                PlaceName = Model.Place.DisplayName;
+            }
+            if (Model.DeparturePlace is not null)
+            {
+                DeparturePlaceName = Model.DeparturePlace.DisplayName;
+            }
+            if (Model.DestinationPlace is not null)
+            {
+                DestinationPlaceName = Model.DestinationPlace.DisplayName;
+            }
+
+            objRef = DotNetObjectReference.Create(this);
+            StateHasChanged();
+        }
+
+        if (pendingPlace != null && placeFormRef != null)
+        {
+            placeFormRef.SelectedPlace = pendingPlace;
+            await placeFormRef.SaveAsync();
+            pendingPlace = null;
+        }
+    }
+
+    private IEnumerable<ReservationSubType> GetSubTypes(ReservationType type) =>
+    Enum.GetValues<ReservationSubType>()
+        .Where(st => st.ToString().StartsWith(type.ToString()))
+        .OrderBy(st => st.GetTitle() == "Other" ? 1 : 0)  // put "Other" last
+        .ThenBy(st => st.GetTitle());
+
+    private void ReservationTypeChanged(ChangeEventArgs e)
+    {
+        if (Enum.TryParse<ReservationType>(e.Value?.ToString(), out var parsedType))
+        {
+            ChangedModel.ReservationType = parsedType;
+        }
+        else
+        {
+            ChangedModel.ReservationType = ReservationType.Other;
+        }
+
+        var subTypes = GetSubTypes(ChangedModel.ReservationType).ToList();
+
+        // ✅ Only reset subtype if it's invalid or not set
+        if (ChangedModel.ReservationSubType == null || !subTypes.Contains(ChangedModel.ReservationSubType.Value))
+        {
+            ChangedModel.ReservationSubType = subTypes.FirstOrDefault();
+        }
+
+        switch (ChangedModel.ReservationType)
+        {
+            case ReservationType.Travel:
+                ChangedModel.EndDate = ChangedModel.StartDate;
+                ChangedModel.EndTime = ChangedModel.StartTime;
+                break;
+
+            case ReservationType.Accomodation:
+                ChangedModel.EndDate = ChangedModel.StartDate.AddDays(1);
+                ChangedModel.StartTime = new TimeSpan(15, 0, 0);
+                ChangedModel.EndTime = new TimeSpan(11, 0, 0);
+                break;
+
+            default:
+                ChangedModel.EndDate = ChangedModel.StartDate;
+                ChangedModel.EndTime = new TimeSpan(0, 0, 0);
+                break;
+        }
+    }
+
+    private ReservationType SelectedReservationType { get; set; }
+    private ReservationSubType? SelectedReservationSubType { get; set; }
+
+    private async Task OpenUrl(string? url)
+    {
+        if (!string.IsNullOrWhiteSpace(url))
+        {
+            // Ensure it starts with http:// or https://
+            if (!url.StartsWith("http://") && !url.StartsWith("https://"))
+            {
+                url = "https://" + url;
+            }
+
+            await JS.InvokeVoidAsync("open", url, "_blank");
+        }
+    }
+
+    private async Task CopyAddress(string value)
+    {
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", value);
+        copiedAddress = true;
+        copiedUrl = false;
+        StateHasChanged();
+
+        await Task.Delay(2000);
+        copiedAddress = false;
+        StateHasChanged();
+    }
+
+    private async Task CopyUrl(string value)
+    {
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", value);
+        copiedUrl = true;
+        copiedAddress = false;
+        StateHasChanged();
+
+        await Task.Delay(2000);
+        copiedUrl = false;
+        StateHasChanged();
+    }
+
+    private async Task Save()
+    {
+        switch (ChangedModel.ReservationType)
+        {
+            case ReservationType.Travel:
+                if (ChangedModel.DeparturePlaceId is null || ChangedModel.DestinationPlaceId is null)
+                {
+                    await ShowDialogNullAsync();
+                    return;
+                }
+                break;
+            default:
+                if (ChangedModel.PlaceId is null)
+                {
+                    await ShowDialogNullAsync();
+                    return;
+                }
+                break;
+        }
+
+        // your existing date/time logic...
+        switch (ChangedModel.ReservationType)
+        {
+            case ReservationType.Travel:
+                ChangedModel.EndDate = ChangedModel.StartDate;
+                ChangedModel.EndTime = ChangedModel.StartTime;
+
+                // Reset places
+                PlaceName = string.Empty;
+                ChangedModel.Place = null;
+                ChangedModel.PlaceId = null;
+                break;
+
+            case ReservationType.Accomodation:
+                ChangedModel.EndDate = ChangedModel.StartDate.AddDays(1);
+                ChangedModel.StartTime = new TimeSpan(15, 0, 0);
+                ChangedModel.EndTime = new TimeSpan(11, 0, 0);
+
+                // Reset places
+                DeparturePlaceName = string.Empty;
+                ChangedModel.DeparturePlace = null;
+                ChangedModel.DeparturePlaceId = null;
+                DestinationPlaceName = string.Empty;
+                ChangedModel.DestinationPlace = null;
+                ChangedModel.DestinationPlaceId = null;
+                break;
+
+            default:
+                ChangedModel.EndDate = ChangedModel.StartDate;
+                ChangedModel.EndTime = new TimeSpan(0, 0, 0);
+
+                // Reset places
+                DeparturePlaceName = string.Empty;
+                ChangedModel.DeparturePlace = null;
+                ChangedModel.DeparturePlaceId = null;
+                DestinationPlaceName = string.Empty;
+                ChangedModel.DestinationPlace = null;
+                ChangedModel.DestinationPlaceId = null;
+                break;
+        }
+
+
+        await OnSaveReservation.InvokeAsync(ChangedModel);
+    }
+
+    private async Task ShowDialogNullAsync()
+    {
+        string title = "Missing Place";
+        string message = "Place cannot be empty. Please select a place.";
+
+        if (ChangedModel.ReservationType == ReservationType.Travel)
+        {
+            title = "Missing Departure and/or Destination Place";
+            message = "Departure and Destination places cannot be empty. Please be sure to select them both.";
+        }
+
+        var options = new ConfirmDialogOptions
+        {
+            IsVerticallyCentered = true,
+            NoButtonColor = ButtonColor.None,
+            NoButtonText = "",
+            YesButtonText = "Okay"
+        };
+        var confirmation = await Dialog.ShowAsync(
+            title: title,
+            message1: message,
+            confirmDialogOptions: options);
+
+        if (confirmation)
+        {
+        }
+        else
+        {
+        }
+    }
+
+    private async Task ShowDialogDeleteAsync()
+    {
+        var options = new ConfirmDialogOptions
+        {
+            IsVerticallyCentered = true,
+            YesButtonColor = ButtonColor.Danger
+
+        };
+        var confirmation = await Dialog.ShowAsync(
+            title: "Delete Reservation?",
+            message1: "Are you sure you want to delete reservation?",
+            confirmDialogOptions: options);
+
+        if (confirmation)
+        {
+            await ConfirmDelete();
+        }
+        else
+        {
+
+        }
+    }
+
+    private async Task ConfirmDelete()
+    {
+        await OnDeleteReservation.InvokeAsync(ChangedModel);
+    }
+
+    [JSInvokable]
+    public async Task<bool> IsPlaceSaved(string googlePlaceId)
+    {
+        selectedPlace = null;
+        var existingPlace = await PlaceService.GetPlaceByGooglePlaceIdAsync(googlePlaceId);
+        selectedPlace = existingPlace;
+
+        return existingPlace != null;
+    }
+
+    [JSInvokable]
+    public async Task OnPlaceChanged(PlaceViewModel result)
+    {
+        bool isNewPlace = false;
+        if (selectedPlace is null || selectedPlace.Id == 0)
+        {
+            isNewPlace = true;
+            selectedPlace = result;
+        }
+
+
+        // Only save if the place is new
+        if (isNewPlace && placeFormRef != null)
+        {
+            placeFormRef.SelectedPlace = selectedPlace;
+            await placeFormRef.SaveAsync();
+        }
+        else if (isNewPlace)
+        {
+            // Wait until after render if form not yet ready
+            pendingPlace = selectedPlace;
+            StateHasChanged();
+            await placeFormRef.SaveAsync();
+        }
+
+
+        switch (AutoCompleteField)
+        {
+            case 1:
+                ChangedModel.Place = selectedPlace;
+                ChangedModel.PlaceId = selectedPlace?.Id;
+                PlaceName = selectedPlace.DisplayName;
+                break;
+            case 2:
+                ChangedModel.DeparturePlace = selectedPlace;
+                ChangedModel.DeparturePlaceId = selectedPlace?.Id;
+                DeparturePlaceName = selectedPlace.DisplayName;
+                break;
+            case 3:
+                ChangedModel.DestinationPlace = selectedPlace;
+                ChangedModel.DestinationPlaceId = selectedPlace?.Id;
+                DestinationPlaceName = selectedPlace.DisplayName;
+                break;
+        }
+
+        await CloseAddReservation();
+    }
+
+    private async Task OpenAddReservationModal(int field)
+    {
+        AutoCompleteField = field;
+        showAutoComplete = true;
+        initPending = true;
+
+        if (OnModalOpen.HasDelegate)
+            await OnModalOpen.InvokeAsync(true);
+    }
+
+    private async Task CloseAddReservation()
+    {
+        showAutoComplete = false;
+        // StateHasChanged();
+
+        if (OnModalOpen.HasDelegate)
+            await OnModalOpen.InvokeAsync(false);
+
+        StateHasChanged();
+    }
+
+    private void SetDestinationDisplayName(string? value)
+    {
+        if (ChangedModel.DestinationPlace == null)
+        {
+            ChangedModel.DestinationPlace = new PlaceViewModel(); // initialize if needed
+        }
+        ChangedModel.DestinationPlace.DisplayName = value;
+    }
+
+    private void StartDateChanged(ChangeEventArgs e)
+    {
+        if (DateTime.TryParse(e.Value?.ToString(), out var parsedDate))
+        {
+            ChangedModel.StartDate = parsedDate;
+
+            // Ensure EndDate is at least StartDate + 1 day
+            if (ChangedModel.EndDate < ChangedModel.StartDate)
+            {
+                ChangedModel.EndDate = ChangedModel.StartDate.AddDays(1);
+            }
+
+            dateError = null;
+            ValidateDates();
+        }
+        else
+        {
+            dateError = "Please enter a valid start date.";
+        }
+    }
+
+    private void EndDateChanged(ChangeEventArgs e)
+    {
+        if (DateTime.TryParse(e.Value?.ToString(), out var parsedDate))
+        {
+            ChangedModel.EndDate = parsedDate;
+            dateError = null;
+            ValidateDates();
+        }
+        else
+        {
+            dateError = "Please enter a valid end date.";
+        }
+    }
+
+    private async Task ShowTabByIndexAsync(int operation, bool skipOperation = false)
+    {
+        if (skipOperation)
+        {
+            activeTabIndex = operation;
+        }
+        else
+        {
+            activeTabIndex += operation;
+        }
+        await tabs.ShowTabByIndexAsync(activeTabIndex);
+        StateHasChanged();
+    }
+
+    private void OnTabShown(TabsEventArgs args)
+    {
+        // int previousActiveTabIndex = int.TryParse(args.PreviousActiveTabName, out var index) ? index : 0;
+        activeTabIndex = int.TryParse(args.ActiveTabName, out var index) ? index : 0;
+        // message = default!;
+        StateHasChanged();
+    }
+
+    private void ValidateDates()
+    {
+        if (ChangedModel.EndDate < ChangedModel.StartDate)
+        {
+            dateError = "End date cannot be earlier than start date.";
+        }
+        else
+        {
+            dateError = null;
+        }
+    }
+
+    private async Task DeleteReservation()
+    {
+        await ShowDialogDeleteAsync();
+    }
+
+    public void Dispose()
+    {
+        objRef?.Dispose();
+    }
+}

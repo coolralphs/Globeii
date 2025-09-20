@@ -1,0 +1,231 @@
+﻿@page "/add-itinerary"
+@page "/edit-itinerary/{ItineraryId:int}"
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.EntityFrameworkCore
+@using TailwindMauiBlazorApp.Core.Data
+@using TailwindMauiBlazorApp.Core.Models
+@using TailwindMauiBlazorApp.Core.Models.Entities
+@inject AppDbContext db
+@inject NavigationManager Nav
+@inject AuthenticationStateProvider AuthStateProvider
+
+<div class="right-container container">
+    <div class="row mb-3 align-items-center">
+        <div class="col">
+            <h3 class="mb-0">Itinerary Details</h3>
+        </div>
+        <div class="col-auto">
+            <a class="btn btn-outline-secondary d-inline-flex align-items-center" href="/itineraries">
+                <i class="bi bi-arrow-left me-2"></i> Back
+            </a>
+        </div>
+    </div>
+
+    <EditForm Model="newItinerary" OnValidSubmit="Save" class="needs-validation" novalidate>
+        <DataAnnotationsValidator />
+        <div class="row g-3">
+            <!-- Name -->
+            <div class="col-12">
+                <InputText @bind-Value="newItinerary.Name"
+                           class="@GetNameInputCss()"
+                           placeholder="Itinerary Name" />
+                <ValidationMessage For="@(() => newItinerary.Name)" />
+                @if (duplicateName)
+                {
+                    <div class="invalid-feedback d-block">
+                        @errorMessage
+                    </div>
+                }
+            </div>
+
+            @*   <!-- Start Date -->
+            <div class="col-md-6 col-12">
+                <label class="form-label">Start Date</label>
+                <InputDate @bind-Value:get="newItinerary.StartDate"
+                           @bind-Value:set="OnStartDateInputChange"
+                           class="form-control" />
+                <ValidationMessage For="@(() => newItinerary.StartDate)" />
+            </div>
+
+            <!-- End Date -->
+            <div class="col-md-6 col-12">
+                <label class="form-label">End Date</label>
+                <InputDate @bind-Value:get="newItinerary.EndDate"
+                           @bind-Value:set="OnEndDateInputChange"
+                           class="form-control" />
+                <ValidationMessage For="@(() => newItinerary.EndDate)" />
+            </div> *@
+
+            <!-- Submit Button -->
+            <div class="col-12 d-flex justify-content-end">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-circle me-1"></i> Save
+                </button>
+            </div>
+        </div>
+    </EditForm>
+</div>
+
+@code {
+    [Parameter] public int? ItineraryId { get; set; }
+
+    Itinerary newItinerary = new();
+    private string errorMessage = "";
+    private bool duplicateName = false;
+    private bool IsEdit => ItineraryId.HasValue;
+    //     private string email =>
+
+    // #if DEBUG
+    //     "metalpunk007@gmail.com";
+    // #else
+    //     string.empty;
+    // #endif
+    private Guid userId { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // var user = await db.AppUsers.FirstOrDefaultAsync(u => u.Email == email);
+
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        var userIdClaim = user.FindFirst("AppUserId")?.Value;
+
+        if (Guid.TryParse(userIdClaim, out var uID))
+        {
+            userId = uID;
+        }
+
+        if (IsEdit)
+        {
+            var existing = await db.Itineraries.FirstOrDefaultAsync(i => i.Id == ItineraryId && i.CreatedBy == userId);
+            if (existing != null)
+                newItinerary = existing;
+            else
+                Nav.NavigateTo("/itineraries"); // Invalid ID or not authorized
+        }
+        else
+        {
+            // newItinerary = new Itinerary
+            // {
+            //     StartDate = DateTime.Today,
+            //     EndDate = DateTime.Today
+            // };
+        }
+    }
+
+    async Task Save()
+    {
+        duplicateName = false;
+        errorMessage = "";
+        // var user = await db.AppUsers.FirstOrDefaultAsync(u => u.Email == email);
+        var trimmedName = newItinerary.Name.Trim();
+
+        // var dispName = "Rafael Salazar";
+        // if (user == null)
+        // {
+        //     var newUser = new AppUser
+        //         {
+        //             Email = "metalpunk007@gmail.com",
+        //             DisplayName = dispName
+        //         };
+
+        //     db.AppUsers.Add(newUser);
+        //     await db.SaveChangesAsync();
+
+        //     var userLogin = new UserLogin
+        //         {
+        //             AppUserId = newUser.Id,
+        //             AppUser = newUser,
+        //             Provider = "Google",
+        //             ProviderUserId = "123456789012345678901",
+        //             ProviderEmail = email,
+        //             ProviderDisplayName = dispName,
+        //             ProviderAvatarUrl = "https://www.gravatar.com/avatar/?d=identicon"
+        //         };
+        //     db.UserLogins.Add(userLogin);
+        //     await db.SaveChangesAsync();
+        // }
+
+
+
+        // var trimmedName = newItinerary.Name.Trim();
+        // var tripExists = await db.Itineraries.Where(w => w.CreatedBy == user.Id && w.Name.ToLower() == trimmedName.ToLower()).AnyAsync();
+
+        // if (tripExists)
+        // {
+        //     duplicateName = true;
+        //     errorMessage = "*Itinerary name already exists. Please choose a different name.";
+        //     return; // Don't proceed with saving
+        // }
+
+        // Check for duplicate name only if adding or changing name
+        var isNameChanged = !IsEdit || (IsEdit && (await db.Itineraries
+            .Where(w => w.CreatedBy == userId && w.Id == ItineraryId)
+            .Select(i => i.Name.ToLower())
+            .FirstOrDefaultAsync()) != trimmedName.ToLower());
+
+        if (isNameChanged)
+        {
+            var tripExists = await db.Itineraries
+                .Where(w => w.CreatedBy == userId && w.Name.ToLower() == trimmedName.ToLower())
+                .AnyAsync();
+
+            if (tripExists)
+            {
+                duplicateName = true;
+                errorMessage = "*Itinerary name already exists. Please choose a different name.";
+                return;
+            }
+        }
+
+        // newItinerary.CreatedBy = user.Id;
+        newItinerary.StartDate = newItinerary.StartDate;
+        newItinerary.EndDate = newItinerary.EndDate;
+        newItinerary.Name = trimmedName;
+
+        if (!IsEdit)
+        {
+            db.Itineraries.Add(newItinerary);
+        }
+        else
+        {
+            db.Itineraries.Update(newItinerary);
+        }
+
+        try
+        {
+            db.CurrentUserId = userId;
+            await db.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+
+        }
+        Nav.NavigateTo($"/itinerary-places/{newItinerary.Id}");
+        // Nav.NavigateTo("/itineraries");
+
+        // db.Itineraries.Add(newItinerary);
+        // await db.SaveChangesAsync();
+        // Nav.NavigateTo("/itineraries");
+    }
+
+    private void OnStartDateInputChange(DateTime? newStartDate)
+    {
+        newItinerary.StartDate = newStartDate;
+        if (newItinerary.EndDate < newStartDate)
+            newItinerary.EndDate = newStartDate;
+    }
+
+    private void OnEndDateInputChange(DateTime? newEndDate)
+    {
+        newItinerary.EndDate = newEndDate;
+        if (newEndDate < newItinerary.StartDate)
+        {
+            newItinerary.StartDate = newEndDate;
+        }
+    }
+
+    private string GetNameInputCss() =>
+        duplicateName ? "form-control is-invalid" : "form-control";
+}

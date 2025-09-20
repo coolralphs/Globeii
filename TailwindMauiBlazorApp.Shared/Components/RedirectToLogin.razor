@@ -1,0 +1,10 @@
+﻿@inject NavigationManager Navigation
+@inject CustomAuthenticationStateProvider AuthProvider
+
+@code {
+    protected override void OnInitialized()
+    {
+        AuthProvider.MarkUserAsLoggedOut();
+        Navigation.NavigateTo("/api/account/login", true);
+    }
+}

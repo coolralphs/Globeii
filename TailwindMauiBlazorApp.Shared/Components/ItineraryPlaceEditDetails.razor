@@ -1,0 +1,204 @@
+﻿@using BlazorBootstrap
+@using TailwindMauiBlazorApp.Shared.Helpers
+@using TailwindMauiBlazorApp.Shared.Models.ViewModels
+@inject JsInterop JsInterop
+@inject IJSRuntime JS
+
+<div class="place-details" style="z-index:9998;">
+    <div class="mb-2">
+        <label class="form-label"><strong>Address:</strong></label>
+        <div class="d-flex align-items-start">
+            <InputTextArea @bind-Value="OriginalItem.Place.FormattedAddress"
+                           class="form-control form-control-sm me-2"
+                           rows="2" Disabled />
+
+            <!-- Open in browser -->
+            <button type="button"
+                    class="btn btn-outline-secondary btn-sm me-1"
+                    title="Open in Google Maps"
+                    @onclick='() => OpenMap("google")'>
+                <i class="fa-brands fa-google"></i>
+            </button>
+
+            @if (isiPhone)
+            {
+                <button type="button"
+                        class="btn btn-outline-secondary btn-sm me-1"
+                        title="Open in Apple Maps"
+                        @onclick='() => OpenMap("apple")'>
+                    <i class="fa-brands fa-apple"></i>
+                </button>
+            }
+
+
+            <!-- Copy to clipboard -->
+            <button type="button"
+                    class="btn btn-outline-secondary btn-sm me-2"
+                    title="Copy to clipboard"
+                    @onclick="() => CopyAddress(OriginalItem.Place.FormattedAddress)">
+                <i class="bi bi-copy"></i>
+            </button>
+
+            <!-- Copied message only for Address -->
+            <div class="ms-auto">
+                @if (copiedAddress)
+                {
+                    <small class="text-success">Copied!</small>
+                }
+            </div>
+        </div>
+
+    </div>
+
+    <div class="mb-2">
+        <label class="form-label"><strong>Notes:</strong></label>
+        <InputTextArea @bind-Value="UpdatedItem.Notes"
+                       class="form-control form-control-sm"
+                       rows="3" />
+    </div>
+
+    <div class="mb-2">
+        <label class="form-label"><strong>URL:</strong></label>
+        <div class="d-flex align-items-center">
+            <TextInput @bind-Value="UpdatedItem.Url" class="form-control form-control-sm me-2" />
+
+            <!-- Open in browser -->
+            <button type="button" class="btn btn-outline-secondary btn-sm me-1"
+                    title="Open in browser"
+                    @onclick="() => OpenUrl(UpdatedItem.Url)">
+                <i class="bi bi-box-arrow-up-right"></i>
+            </button>
+
+            <!-- Copy to clipboard -->
+            <button type="button" class="btn btn-outline-secondary btn-sm me-2"
+                    title="Copy to clipboard"
+                    @onclick="() => CopyUrl(UpdatedItem.Url)">
+                <i class="bi bi-copy"></i>
+            </button>
+
+            <!-- Copied message only for URL -->
+            <div class="ms-auto">
+                @if (copiedUrl)
+                {
+                    <small class="text-success">Copied!</small>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="mb-2 form-check">
+        <InputCheckbox @bind-Value="UpdatedItem.IsBooked" class="form-check-input" id="isBooked" />
+        <label class="form-check-label" for="isBooked"><strong>Is Reserved</strong></label>
+    </div>
+
+    <div class="mb-2 form-check">
+        <InputCheckbox @bind-Value="UpdatedItem.BookingRequired" class="form-check-input" id="bookingRequired" />
+        <label class="form-check-label" for="bookingRequired"><strong>Needs Reservation</strong></label>
+    </div>
+
+    <div class="mb-2 form-check">
+        <InputCheckbox @bind-Value="UpdatedItem.IsPaid" class="form-check-input" id="isPaid" />
+        <label class="form-check-label" for="isPaid"><strong>Is Paid</strong></label>
+    </div>
+
+    <div class="mb-2 form-check">
+        <InputCheckbox @bind-Value="UpdatedItem.PrePaymentRequired" class="form-check-input" id="prePaymentRequired" />
+        <label class="form-check-label" for="prePaymentRequired"><strong>Pre-Payment Required</strong></label>
+    </div>
+
+    <div class="d-flex justify-content-end mt-3">
+        <button type="button" class="btn btn-primary" @onclick="Save">
+            Save
+        </button>
+    </div>
+
+</div>
+
+@code {
+    [Parameter]
+    public EventCallback OnSave { get; set; }
+    [Parameter]
+    public ItineraryPlaceViewModel OriginalItem { get; set; } = new();
+    [Parameter]
+    public ItineraryPlaceViewModel UpdatedItem { get; set; } = new();
+    private bool isiPhone;
+    private bool copiedAddress;
+    private bool copiedUrl;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            isiPhone = await JsInterop.IsIPhone();
+            StateHasChanged();
+        }
+    }
+
+    private async Task OpenMap(string mapType)
+    {
+        await JS.InvokeVoidAsync("openMaps",
+            OriginalItem.Place.GooglePlaceId,
+            OriginalItem.Place.Lat,
+            OriginalItem.Place.Lng,
+            mapType);
+    }
+
+    private async Task OpenUrl(string? url)
+    {
+        if (!string.IsNullOrWhiteSpace(url))
+        {
+            // Ensure it starts with http:// or https://
+            if (!url.StartsWith("http://") && !url.StartsWith("https://"))
+            {
+                url = "https://" + url;
+            }
+
+            await JS.InvokeVoidAsync("open", url, "_blank");
+        }
+    }
+
+    private async Task CopyAddress(string value)
+    {
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", value);
+        copiedAddress = true;
+        copiedUrl = false; // ensure URL doesn't show
+        StateHasChanged();
+
+        await Task.Delay(2000);
+        copiedAddress = false;
+        StateHasChanged();
+    }
+
+    private async Task CopyUrl(string value)
+    {
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", value);
+        copiedUrl = true;
+        copiedAddress = false; // ensure Address doesn't show
+        StateHasChanged();
+
+        await Task.Delay(2000);
+        copiedUrl = false;
+        StateHasChanged();
+    }
+
+    private async Task Save()
+    {
+        // if (HasChanges())
+        // {
+            await OnSave.InvokeAsync();
+        // }
+    }
+
+    // private bool HasChanges()
+    // {
+    //     if (OriginalItem == null || UpdatedItem == null) return false;
+
+    //     return
+    //         OriginalItem.Notes != UpdatedItem.Notes ||
+    //         OriginalItem.Url != UpdatedItem.Url ||
+    //         OriginalItem.IsBooked != UpdatedItem.IsBooked ||
+    //         OriginalItem.BookingRequired != UpdatedItem.BookingRequired ||
+    //         OriginalItem.IsPaid != UpdatedItem.IsPaid ||
+    //         OriginalItem.PrePaymentRequired != UpdatedItem.PrePaymentRequired;
+    // }
+}

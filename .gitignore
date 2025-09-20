@@ -1,0 +1,21 @@
+# Visual Studio / .NET
+.vs/
+bin/
+obj/
+*.user
+*.suo
+*.pdb
+*.log
+*.vsix
+*.dbmdl
+*.DS_Store
+*.nuget
+*.nupkg
+*.zip
+
+# Rider
+.idea/
+
+# OS generated
+Thumbs.db
+desktop.ini

@@ -1,0 +1,240 @@
+﻿@using BlazorBootstrap
+@using System.Reflection;
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+@using TailwindMauiBlazorApp.Core.Models.Enums
+@using TailwindMauiBlazorApp.Shared.Components.Reservations
+@using TailwindMauiBlazorApp.Shared.Helpers
+@using static TailwindMauiBlazorApp.Shared.Helpers.DateHelper
+@using TailwindMauiBlazorApp.Shared.Models.ViewModels
+@using TailwindMauiBlazorApp.Shared.Models.Enums
+@using TailwindMauiBlazorApp.Shared.Services
+@inject IIItineraryReservationService ItineraryReserevationService
+@inject JsInterop JsInterop
+@inject AuthenticationStateProvider AuthStateProvider
+
+<div class="p-2" style="z-index:1; padding-bottom: 0 !important;">
+    <div class="row mb-3 align-items-center">
+        <div class="col">
+            @* <h3 class="mb-0">Reservations</h3> *@
+        </div>
+        <div class="col-auto">
+            <button class="btn btn-primary btn-sm d-inline-flex align-items-center" @onclick="OpenAddReservationModal">
+                <i class="bi bi-plus-circle me-2"></i> Add New Reservation
+            </button>
+        </div>
+    </div>
+
+    @if (!groupedReservations.Any())
+    {
+        <div class="text-muted fst-italic">There are no reservations.</div>
+    }
+
+    <div class="row g-3">
+        @if (Reservations != null)
+        {
+            <Accordion id="myAccordion">
+                @foreach (var group in groupedReservations)
+                {
+                    <AccordionItem>
+                        <TitleTemplate>
+                            <i class="@group.Type.GetIconClass()"></i> @group.Title
+                        </TitleTemplate>
+                        <Content>
+                            <TravelList Reservations="@group.Items"
+                                        ReservationType="@group.Type"
+                                        GroupedReservationsChanged="HandleGroupedReservationsChanged" />
+
+                        </Content>
+                    </AccordionItem>
+                }
+            </Accordion>
+        }
+    </div>
+</div>
+
+@if (ShowAddReservation)
+{
+    <div class="overlay" @onclick="CloseAddReservation">
+        <div class="edit-schedule-container" @onclick:stopPropagation="true">
+            <div class="popup-header">
+                <span class="popup-title">Add Reservation</span>
+                <button class="close-btn" @onclick="CloseAddReservation">×</button>
+            </div>
+
+            <div class="card-body">
+                <AddReservation OnSaveReservation="HandleReservationSave"
+                                OnDeleteReservation="HandleReservationDelete"
+                                OnModalOpen="HandleToggleFlag" />
+            </div>
+        </div>
+    </div>
+}
+
+@* <ConfirmDialog @ref="dialog" Id="confirmModal" Style="z-index:9999;" /> *@
+
+@code {
+    [Parameter]
+    public List<ItineraryReservationViewModel> Reservations { get; set; }
+    [Parameter]
+    public int ItineraryId { get; set; }
+    [Parameter]
+    public EventCallback<List<ItineraryReservationViewModel>> ReservationsChanged { get; set; }
+    public List<ReservationGroupViewModel> groupedReservations { get; set; } = new List<ReservationGroupViewModel>();
+    [Parameter]
+    public bool ShowAddReservation { get; set; }
+    private bool AutoCompleteIsOpen { get; set; }
+    private ClaimsPrincipal user;
+    private Guid userId {get;set;}
+    // private ConfirmDialog dialog = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        // user = authState.User;
+
+        // var email = user.FindFirst(c => c.Type == ClaimTypes.Email)?.Value;
+        // var id = user.FindFirst(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
+
+
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        var userIdClaim = user.FindFirst("AppUserId")?.Value;
+
+        if (Guid.TryParse(userIdClaim, out var uId))
+        {
+            userId = uId;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        await Task.Yield();
+
+        try
+        {
+            groupedReservations = Reservations
+                .GroupBy(r => r.ReservationType)
+                .Select(g => new ReservationGroupViewModel
+                {
+                    Type = g.Key,
+                    Title = g.Key.GetTitle(),
+                    Items = g.ToList()
+                })
+                .OrderBy(g => g.Type == ReservationType.Other ? 1 : 0)   // "Other" goes last
+                .ThenBy(g => g.Title)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+
+        }
+    }
+
+    public static string GetReservationTypeTitle(ReservationType type)
+    {
+        var member = type.GetType().GetMember(type.ToString()).FirstOrDefault();
+        var attr = member?.GetCustomAttribute<Models.Enums.TitlePairAttribute>();
+        return attr?.ScreenTitle ?? type.ToString();
+    }
+
+    private void OpenAddReservationModal()
+    {
+        ShowAddReservation = true;
+    }
+
+    private async Task CloseAddReservation()
+    {
+        if (!AutoCompleteIsOpen)
+        {
+            ShowAddReservation = false;
+        }
+        // StateHasChanged();
+    }
+
+    private async Task HandleGroupedReservationsChanged(ItineraryReservationViewModel model)
+    {
+        await HandleReservationSave(model);
+    }
+
+    private async Task HandleReservationDelete(ItineraryReservationViewModel model)
+    {
+        if (model is null || model.Id == 0)
+            return; // nothing to delete                
+
+        try
+        {
+            // Call your service to delete from DB
+            await ItineraryReserevationService.DeleteByIdAsync(ItineraryId,model.Id);
+
+            // Remove from local list
+            var existing = Reservations.FirstOrDefault(r => r.Id == model.Id);
+            if (existing != null)
+            {
+                Reservations.Remove(existing);
+            }
+
+            // Rebuild grouped list
+            groupedReservations = Reservations
+                .GroupBy(r => r.ReservationType)
+                .Select(g => new ReservationGroupViewModel
+                {
+                    Type = g.Key,
+                    Title = g.Key.GetTitle(),
+                    Items = g.OrderBy(o => o.StartDate).ThenBy(t => t.StartTime).ToList()
+                })
+                .OrderBy(g => g.Type == ReservationType.Other ? 1 : 0) // "Other" last
+                .ThenBy(g => g.Title)
+                .ToList();
+
+            ShowAddReservation = false;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+        }
+    }
+
+    private async Task HandleReservationSave(ItineraryReservationViewModel model)
+    {
+        model.ItineraryId = ItineraryId;
+        model.CreatedBy = userId;
+        // var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        var savedReservation = await ItineraryReserevationService.AddOrModifyItineraryReservationAsync(model);
+
+        // if new, add to list; if existing, replace
+        var existing = Reservations.FirstOrDefault(r => r.Id == savedReservation.Id);
+        if (existing != null)
+        {
+            var index = Reservations.IndexOf(existing);
+            Reservations[index] = savedReservation;
+        }
+        else
+        {
+            Reservations.Add(savedReservation);
+        }
+
+        groupedReservations = Reservations
+            .GroupBy(r => r.ReservationType)
+            .Select(g => new ReservationGroupViewModel
+            {
+                Type = g.Key,
+                Title = g.Key.GetTitle(),
+                Items = g.OrderBy(o => o.StartDate).ThenBy(t => t.StartTime).ToList()
+            })
+            .OrderBy(g => g.Type == ReservationType.Other ? 1 : 0) // "Other" last
+            .ThenBy(g => g.Title)
+            .ToList();
+
+        ShowAddReservation = false;
+        StateHasChanged();
+    }
+
+    private void HandleToggleFlag(bool toggle)
+    {
+        AutoCompleteIsOpen = toggle;
+    }
+}
