@@ -9,9 +9,10 @@
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthProvider
 @inject Microsoft.AspNetCore.Http.IHttpContextAccessor HttpContextAccessor
-@inject CustomAuthenticationStateProvider AuthProvider
+@* @inject CustomAuthenticationStateProvider AuthProvider *@
+@inject AuthenticationStateProvider AuthStateProvider
 
-@* <CascadingAuthenticationState> *@
+<CascadingAuthenticationState>
     <div class="top-menu d-flex bg-dark justify-content-between align-items-center bg-light border-bottom px-4 py-2">
         <h5 class="mb-0 text-white"></h5>
 
@@ -158,7 +159,7 @@
         <span class="dismiss">🗙</span>
     </div>
 
-@* </CascadingAuthenticationState> *@
+</CascadingAuthenticationState>
 
 @* <div class="page">
     <div class="sidebar">
@@ -264,19 +265,22 @@
     //     user = state.User;
     // }
 
-    // protected override async Task OnInitializedAsync()
-    // {
-    //     var state = await AuthProvider.GetAuthenticationStateAsync();
-    //     user = state.User;
-    //     if (AuthenticationStateTask != null)
-    //     {
-    //         var authState = await AuthenticationStateTask;
-    //         user = authState.User;
-    //     }
-    //     else
-    //     {
-    //         // Handle null gracefully — maybe default to anonymous user
-    //         user = new ClaimsPrincipal(new ClaimsIdentity());
-    //     }
-    // }
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        var userIdClaim = user.FindFirst("AppUserId")?.Value;
+        // var state = await AuthProvider.GetAuthenticationStateAsync();
+        // user = state.User;
+        // if (AuthenticationStateTask != null)
+        // {
+        //     var authState = await AuthenticationStateTask;
+        //     user = authState.User;
+        // }
+        // else
+        // {
+        //     // Handle null gracefully — maybe default to anonymous user
+        //     user = new ClaimsPrincipal(new ClaimsIdentity());
+        // }
+    }
 }

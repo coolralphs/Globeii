@@ -65,76 +65,84 @@ builder.Services.AddAuthentication(options =>
 
     googleOptions.Events.OnRemoteFailure = ctx =>
     {
-        ctx.Response.Redirect("/");
+        //ctx.Response.Redirect("/");
         ctx.HandleResponse();
         return Task.CompletedTask;
     };
     googleOptions.Events.OnCreatingTicket = async ctx =>
     {
-        var db = ctx.HttpContext.RequestServices.GetRequiredService<AppDbContext>();
-
-        var provider = "Google";
-        var providerUserId = ctx.Principal.FindFirstValue(ClaimTypes.NameIdentifier)!;
-        var email = ctx.Principal.FindFirstValue(ClaimTypes.Email)!;
-        var displayName = ctx.Principal.Identity?.Name;
-        var avatarUrl = ctx.Principal.FindFirstValue("urn:google:picture") ?? ctx.Principal.FindFirstValue("picture");
-
-        var login = await db.UserLogins
-            .Include(l => l.AppUser)
-            .FirstOrDefaultAsync(l => l.Provider == provider && l.ProviderUserId == providerUserId);
-
-        AppUser appUser;
-
-        if (login != null)
+        try
         {
-            appUser = login.AppUser!;
-            login.ProviderDisplayName = displayName;
-            login.ProviderAvatarUrl = avatarUrl;
-            login.ProviderEmail = email; 
+            var db = ctx.HttpContext.RequestServices.GetRequiredService<AppDbContext>();
 
-            db.UserLogins.Update(login);
-            await db.SaveChangesAsync();
-        }
-        else
-        {
-            appUser = await db.AppUsers.FirstOrDefaultAsync(u => u.Email == email);
-            if (appUser == null)
+            var provider = "Google";
+            var providerUserId = ctx.Principal.FindFirstValue(ClaimTypes.NameIdentifier)!;
+            var email = ctx.Principal.FindFirstValue(ClaimTypes.Email)!;
+            var displayName = ctx.Principal.Identity?.Name;
+            var avatarUrl = ctx.Principal.FindFirstValue("urn:google:picture") ?? ctx.Principal.FindFirstValue("picture");
+
+            var login = await db.UserLogins
+                .Include(l => l.AppUser)
+                .FirstOrDefaultAsync(l => l.Provider == provider && l.ProviderUserId == providerUserId);
+
+            AppUser appUser;
+
+            if (login != null)
             {
-                appUser = new AppUser
+                appUser = login.AppUser!;
+                login.ProviderDisplayName = displayName;
+                login.ProviderAvatarUrl = avatarUrl;
+                login.ProviderEmail = email;
+
+                db.UserLogins.Update(login);
+                await db.SaveChangesAsync();
+            }
+            else
+            {
+                appUser = await db.AppUsers.FirstOrDefaultAsync(u => u.Email == email);
+                if (appUser == null)
                 {
-                    Email = email,
-                    DisplayName = displayName
+                    appUser = new AppUser
+                    {
+                        Email = email,
+                        DisplayName = displayName
+                    };
+                    db.AppUsers.Add(appUser);
+                    await db.SaveChangesAsync();
+                }
+
+                login = new UserLogin
+                {
+                    AppUserId = appUser.Id,
+                    Provider = provider,
+                    ProviderUserId = providerUserId,
+                    ProviderEmail = email,
+                    ProviderDisplayName = displayName,
+                    ProviderAvatarUrl = avatarUrl
                 };
-                db.AppUsers.Add(appUser);
+                db.UserLogins.Add(login);
                 await db.SaveChangesAsync();
             }
 
-            login = new UserLogin
-            {
-                AppUserId = appUser.Id,
-                Provider = provider,
-                ProviderUserId = providerUserId,
-                ProviderEmail = email,
-                ProviderDisplayName = displayName,
-                ProviderAvatarUrl = avatarUrl
-            };
-            db.UserLogins.Add(login);
-            await db.SaveChangesAsync();
+            var identity = (ClaimsIdentity)ctx.Principal.Identity!;
+            identity.AddClaim(new Claim("AppUserId", appUser.Id.ToString()));
         }
+        catch(Exception ex)
+        {
 
-        var identity = (ClaimsIdentity)ctx.Principal.Identity!;
-        identity.AddClaim(new Claim("AppUserId", appUser.Id.ToString()));
+        }
+        
     };
 });
 
 builder.Services.AddAuthorization();
 builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthenticationStateProvider>();
-builder.Services.AddScoped<CustomAuthenticationStateProvider>(); 
+builder.Services.AddScoped<CustomAuthenticationStateProvider>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 
 builder.Services.AddAuthorization();
-//builder.Services.AddScoped<AuthenticationStateProvider, ServerAuthenticationStateProvider>();
+builder.Services.AddScoped<AuthenticationStateProvider, ServerAuthenticationStateProvider>();
 
 builder.Services.AddControllers();
 

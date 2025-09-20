@@ -766,7 +766,6 @@ else
     protected override async Task OnInitializedAsync()
     {
         _editContext = new EditContext(dateRangeViewModel);
-        // apiKey = Configuration["GoogleMapsApiKey"];
         var today = DateTime.Today;
 
         dateRangeViewModel = new DateTimeRangeViewModel
@@ -844,7 +843,7 @@ else
         objRef?.Dispose();
         objRef = DotNetObjectReference.Create(this);
 
-        var apiKey = Configuration["GoogleMapsApiKey"];
+        var apiKey = Configuration["GoogleApiKey"];
         await JsInterop.LoadScript(
             $"https://maps.googleapis.com/maps/api/js?key={apiKey}&libraries=marker,places&v=beta");
 
