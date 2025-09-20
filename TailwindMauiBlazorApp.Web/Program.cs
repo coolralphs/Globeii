@@ -17,19 +17,14 @@ using TailwindMauiBlazorApp.Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-//builder.Services.AddScoped<AuditInterceptor>();
 builder.Services.AddDbContextFactory<AppDbContext>(options =>
     options.UseNpgsql(
         builder.Configuration.GetConnectionString("DefaultConnection"),
         b => b.MigrationsAssembly("TailwindMauiBlazorApp.Core")));
 
-
-
-// Add device-specific services used by the TailwindMauiBlazorApp.Shared project
 builder.Services.AddSingleton<IFormFactor, FormFactor>();
 builder.Services.AddScoped<IIItineraryService, IItineraryService>();
 builder.Services.AddScoped<IIItineraryAccomodationService, IItineraryAccomodationService>();
@@ -40,57 +35,6 @@ builder.Services.AddScoped<IIPlaceService, IPlaceService>();
 builder.Services.AddScoped<JsInterop>();
 builder.Services.AddBlazorBootstrap();
 
-//builder.Services.AddAuthentication(options =>
-//{
-//    options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-//    options.DefaultChallengeScheme = GoogleDefaults.AuthenticationScheme;
-//})
-//.AddCookie(options =>
-//{
-//    options.Cookie.Name = ".AspNetCore.Cookies"; // ensure it matches the cookie you're deleting manually
-//    options.Cookie.HttpOnly = true;
-//    options.Cookie.SameSite = SameSiteMode.Lax; // or None with Secure = true if cross-site
-//    options.Cookie.SecurePolicy = CookieSecurePolicy.Always; // HTTPS required
-//    options.ExpireTimeSpan = TimeSpan.FromMinutes(60);
-//    options.SlidingExpiration = true;
-
-//    options.LoginPath = "/Account/Login";
-//    options.LogoutPath = "/Account/Logout";
-
-//    options.Events.OnSigningOut = context =>
-//    {
-//        context.Response.Headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
-//        context.Response.Headers["Pragma"] = "no-cache";
-//        context.Response.Headers["Expires"] = "0";
-//        return Task.CompletedTask;
-//    };
-//})
-//.AddGoogle(googleOptions =>
-//{
-//    googleOptions.ClientId = builder.Configuration["Authentication:Google:ClientId"];
-//    googleOptions.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"];
-//    googleOptions.CallbackPath = "/signin-google";
-//});
-
-//builder.Services.AddAuthentication(options =>
-//{
-//    options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-//    options.DefaultChallengeScheme = GoogleDefaults.AuthenticationScheme;
-//})
-//.AddCookie(options =>
-//{
-//    options.Cookie.Name = ".AspNetCore.Cookies";
-//    options.Cookie.HttpOnly = true;
-//    options.Cookie.SameSite = SameSiteMode.None;   // must be None for OAuth cross-site redirect
-//    options.Cookie.SecurePolicy = CookieSecurePolicy.None; // only for localhost
-//})
-//.AddGoogle(googleOptions =>
-//{
-//    googleOptions.ClientId = builder.Configuration["Authentication:Google:ClientId"];
-//    googleOptions.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"];
-//    googleOptions.CallbackPath = "/signin-google"; // must match Google console
-//});
-
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
@@ -99,10 +43,6 @@ builder.Services.AddAuthentication(options =>
 })
 .AddCookie(options =>
 {
-    options.Cookie.Name = ".AspNetCore.Cookies"; // ensure it matches the cookie you're deleting manually
-    options.Cookie.HttpOnly = true;
-    options.Cookie.SameSite = SameSiteMode.None; // or None with Secure = true if cross-site
-    options.Cookie.SecurePolicy = CookieSecurePolicy.Always; // HTTPS required
     options.ExpireTimeSpan = TimeSpan.FromMinutes(60);
     options.SlidingExpiration = true;
 
@@ -125,9 +65,8 @@ builder.Services.AddAuthentication(options =>
 
     googleOptions.Events.OnRemoteFailure = ctx =>
     {
-        // Handle correlation failures or other errors gracefully
-        ctx.Response.Redirect("/"); // or "/" if you prefer
-        ctx.HandleResponse(); // suppress exception
+        ctx.Response.Redirect("/");
+        ctx.HandleResponse();
         return Task.CompletedTask;
     };
     googleOptions.Events.OnCreatingTicket = async ctx =>
@@ -140,7 +79,6 @@ builder.Services.AddAuthentication(options =>
         var displayName = ctx.Principal.Identity?.Name;
         var avatarUrl = ctx.Principal.FindFirstValue("urn:google:picture") ?? ctx.Principal.FindFirstValue("picture");
 
-        // Look up login by provider + providerUserId (not just email!)
         var login = await db.UserLogins
             .Include(l => l.AppUser)
             .FirstOrDefaultAsync(l => l.Provider == provider && l.ProviderUserId == providerUserId);
@@ -149,18 +87,16 @@ builder.Services.AddAuthentication(options =>
 
         if (login != null)
         {
-            // Existing login — update fields if changed
             appUser = login.AppUser!;
             login.ProviderDisplayName = displayName;
             login.ProviderAvatarUrl = avatarUrl;
-            login.ProviderEmail = email; // <-- add this
+            login.ProviderEmail = email; 
 
             db.UserLogins.Update(login);
             await db.SaveChangesAsync();
         }
         else
         {
-            // Check if AppUser exists by email
             appUser = await db.AppUsers.FirstOrDefaultAsync(u => u.Email == email);
             if (appUser == null)
             {
@@ -173,7 +109,6 @@ builder.Services.AddAuthentication(options =>
                 await db.SaveChangesAsync();
             }
 
-            // Create new UserLogin
             login = new UserLogin
             {
                 AppUserId = appUser.Id,
@@ -187,58 +122,24 @@ builder.Services.AddAuthentication(options =>
             await db.SaveChangesAsync();
         }
 
-        // Add AppUserId claim
         var identity = (ClaimsIdentity)ctx.Principal.Identity!;
         identity.AddClaim(new Claim("AppUserId", appUser.Id.ToString()));
     };
 });
 
 builder.Services.AddAuthorization();
-//builder.Services.AddScoped<AuthenticationStateProvider, ServerAuthenticationStateProvider>();
 builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthenticationStateProvider>();
-builder.Services.AddScoped<CustomAuthenticationStateProvider>(); // optional, for easier injection
+builder.Services.AddScoped<CustomAuthenticationStateProvider>(); 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
-//builder.Services.AddAuthentication(options =>
-//{
-//    options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-//    options.DefaultChallengeScheme = GoogleDefaults.AuthenticationScheme;
-//})
-//.AddCookie(options =>
-//{
-//    options.Cookie.Name = ".AspNetCore.Cookies"; // ensure it matches the cookie you're deleting manually
-//    options.Cookie.HttpOnly = true;
-//    options.Cookie.SameSite = SameSiteMode.Lax; // or None with Secure = true if cross-site
-//    options.Cookie.SecurePolicy = CookieSecurePolicy.Always; // HTTPS required
-//    options.ExpireTimeSpan = TimeSpan.FromMinutes(60);
-//    options.SlidingExpiration = true;
-
-//    options.LoginPath = "/Account/Login";
-//    options.LogoutPath = "/Account/Logout";
-
-//    options.Events.OnSigningOut = context =>
-//    {
-//        context.Response.Headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
-//        context.Response.Headers["Pragma"] = "no-cache";
-//        context.Response.Headers["Expires"] = "0";
-//        return Task.CompletedTask;
-//    };
-//})
-//.AddGoogle(googleOptions =>
-//{
-//    googleOptions.ClientId = builder.Configuration["Authentication:Google:ClientId"];
-//    googleOptions.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"];
-//});
 
 builder.Services.AddAuthorization();
 builder.Services.AddScoped<AuthenticationStateProvider, ServerAuthenticationStateProvider>();
-//builder.Services.AddAuthenticationCore();
 
 builder.Services.AddControllers();
 
 builder.Services.AddHttpClient();
 
-// Register the service with a factory to pass the API key
 builder.Services.AddSingleton<GooglePlacesService>(sp =>
 {
     var httpClient = sp.GetRequiredService<HttpClient>();
@@ -246,13 +147,10 @@ builder.Services.AddSingleton<GooglePlacesService>(sp =>
     return new GooglePlacesService(httpClient, apiKey);
 });
 
-// Add AutoMapper and provide the config inline
 builder.Services.AddAutoMapper(cfg =>
 {
     cfg.AddProfile<MappingProfile>();
 });
-
-//builder.Services.AddControllersWithViews();
 
 builder.Services.ConfigureApplicationCookie(options =>
 {
@@ -263,11 +161,9 @@ builder.Services.ConfigureApplicationCookie(options =>
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 
@@ -281,24 +177,9 @@ app.UseForwardedHeaders(new ForwardedHeadersOptions
     ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
 });
 
-app.UseAuthentication();  // <-- must be before Authorization
+app.UseAuthentication(); 
 app.UseAuthorization();
 app.MapControllers();
-
-//app.MapGet("/account/login", async context =>
-//{
-//    var props = new AuthenticationProperties
-//    {
-//        RedirectUri = "/"
-//    };
-//    await context.ChallengeAsync(GoogleDefaults.AuthenticationScheme, props);
-//});
-
-//app.MapGet("/account/logout", async context =>
-//{
-//    await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-//    context.Response.Redirect("/");
-//});
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()
