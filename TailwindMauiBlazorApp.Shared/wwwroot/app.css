@@ -610,31 +610,11 @@ section {
     padding-bottom: 1rem !important;
 }
 
-@media (max-width: 768px) {
-    #theme-container:not(.dark) .offcanvas-bottom.fullscreen {
-        height: 85vh !important;
-        max-height: 85vh !important;
-        border-top-left-radius: 1rem;
-        border-top-right-radius: 1rem;
-        background-color: #ffffff !important;
-        color: #212529;
-        box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.1) !important;
-    }
 
-    #theme-container.dark .offcanvas-bottom.fullscreen {
-        height: 85vh !important;
-        max-height: 85vh !important;
-        border-top-left-radius: 1rem;
-        border-top-right-radius: 1rem;
-        background-color: #1e1e1e !important;
-        color: #f0f0f0;
-        box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.7) !important;
-    }
-}
 
 #theme-container:not(.dark) .offcanvas-bottom.fullscreen {
-    height: 94vh !important;
-    max-height: 94vh !important;
+    height: 85vh !important;
+    max-height: 85vh !important;
     border-top-left-radius: 1rem;
     border-top-right-radius: 1rem;
     background-color: #ffffff !important;
@@ -643,8 +623,8 @@ section {
 }
 
 #theme-container.dark .offcanvas-bottom.fullscreen {
-    height: 94vh !important;
-    max-height: 94vh !important;
+    height: 85vh !important;
+    max-height: 85vh !important;
     border-top-left-radius: 1rem;
     border-top-right-radius: 1rem;
     background-color: #1e1e1e !important;
