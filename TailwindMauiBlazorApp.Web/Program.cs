@@ -134,7 +134,7 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 
 builder.Services.AddAuthorization();
-builder.Services.AddScoped<AuthenticationStateProvider, ServerAuthenticationStateProvider>();
+//builder.Services.AddScoped<AuthenticationStateProvider, ServerAuthenticationStateProvider>();
 
 builder.Services.AddControllers();
 
@@ -180,6 +180,10 @@ app.UseForwardedHeaders(new ForwardedHeadersOptions
 app.UseAuthentication(); 
 app.UseAuthorization();
 app.MapControllers();
+
+using var scope = app.Services.CreateScope();
+var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+db.Database.Migrate();
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()
