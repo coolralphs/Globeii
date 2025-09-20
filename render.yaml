@@ -1,23 +1,18 @@
 services:
   - type: web
-<<<<<<< HEAD
-    name: TailwindBlazorApp
-    env: dotnet
-    branch: main
-    rootDirectory: TailwindMauiBlazorApp.Web
-    plan: free
-    buildCommand: "dotnet publish -c Release -o publish"
-    startCommand: "dotnet publish/TailwindBlazorApp.Web.dll"
-=======
     name: blazor-server-net9
     env: docker
-    plan: free
->>>>>>> 695e73b (Recommit full solution)
+    plan: starter
+    branch: main
+    rootDirectory: TailwindMauiBlazorApp.Web
+    buildCommand: "dotnet publish -c Release -o publish"
+    startCommand: "dotnet publish/TailwindBlazorApp.Web.dll"
     envVars:
       - key: DB_HOST
         sync: false
       - key: DB_PORT
         sync: false
+        value: "5432"
       - key: DB_NAME
         sync: false
       - key: DB_USER
