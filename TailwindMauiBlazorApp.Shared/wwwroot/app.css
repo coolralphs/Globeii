@@ -611,8 +611,8 @@ section {
 }
 
 #theme-container:not(.dark) .offcanvas-bottom.fullscreen {
-    height: 100vh !important;
-    max-height: 100vh !important;
+    height: 93vh !important;
+    max-height: 93vh !important;
     border-top-left-radius: 1rem;
     border-top-right-radius: 1rem;
     background-color: #ffffff !important;
@@ -621,8 +621,8 @@ section {
 }
 
 #theme-container.dark .offcanvas-bottom.fullscreen {
-    height: 100vh !important;
-    max-height: 100vh !important;
+    height: 93vh !important;
+    max-height: 93vh !important;
     border-top-left-radius: 1rem;
     border-top-right-radius: 1rem;
     background-color: #1e1e1e !important;
