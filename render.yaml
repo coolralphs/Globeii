@@ -4,8 +4,8 @@ services:
     env: dotnet
     branch: main
     plan: free
-    buildCommand: "dotnet publish TailwindBlazorApp.Server -c Release -o publish"
-    startCommand: "dotnet TailwindBlazorApp.Server.dll"
+    buildCommand: "dotnet publish TailwindBlazorApp.Web -c Release -o publish"
+    startCommand: "dotnet TailwindBlazorApp.Web.dll"
     envVars:
       - key: DB_HOST
         sync: false
