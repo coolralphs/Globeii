@@ -125,16 +125,18 @@
         }
     }
 
-    private async Task OpenMap(string mapType)
+    private void OpenMap(string mapType)
     {
-        await JS.InvokeVoidAsync("openMaps",
+        if (ExpandedItem?.Place == null) return;
+
+        JS.InvokeVoidAsync("openMaps",
             ExpandedItem.Place.GooglePlaceId,
             ExpandedItem.Place.Lat,
             ExpandedItem.Place.Lng,
             mapType);
     }
 
-    private async Task OpenUrl(string? url)
+    private void OpenUrl(string? url)
     {
         if (!string.IsNullOrWhiteSpace(url))
         {
@@ -144,31 +146,47 @@
                 url = "https://" + url;
             }
 
-            await JS.InvokeVoidAsync("open", url, "_blank");
+            JS.InvokeVoidAsync("open", url, "_blank");
         }
     }
 
-    private async Task CopyAddress(string value)
+    private void CopyAddress(string value)
     {
-        await JS.InvokeVoidAsync("navigator.clipboard.writeText", value);
+        if (string.IsNullOrWhiteSpace(value)) return;
+
+        // Call JS immediately
+        JS.InvokeVoidAsync("navigator.clipboard.writeText", value);
+
+        // Show “Copied” message
         copiedAddress = true;
-        copiedUrl = false; // ensure URL doesn't show
+        copiedUrl = false;
         StateHasChanged();
 
-        await Task.Delay(2000);
-        copiedAddress = false;
-        StateHasChanged();
+        // Hide after 2 seconds without breaking user gesture
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(2000);
+            copiedAddress = false;
+            await InvokeAsync(StateHasChanged);
+        });
     }
 
-    private async Task CopyUrl(string value)
+    private void CopyUrl(string value)
     {
-        await JS.InvokeVoidAsync("navigator.clipboard.writeText", value);
+        if (string.IsNullOrWhiteSpace(value)) return;
+        
+        JS.InvokeVoidAsync("navigator.clipboard.writeText", value);
+
         copiedUrl = true;
         copiedAddress = false; // ensure Address doesn't show
         StateHasChanged();
 
-        await Task.Delay(2000);
-        copiedUrl = false;
-        StateHasChanged();
+        // Hide after delay without blocking JS call
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(2000);
+            copiedUrl = false;
+            await InvokeAsync(StateHasChanged);
+        });
     }
 }
