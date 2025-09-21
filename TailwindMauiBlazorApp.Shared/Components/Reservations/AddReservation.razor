@@ -557,8 +557,8 @@
         switch (ChangedModel.ReservationType)
         {
             case ReservationType.Travel:
-                ChangedModel.EndDate = ChangedModel.StartDate;
-                ChangedModel.EndTime = ChangedModel.StartTime;
+                // ChangedModel.EndDate = ChangedModel.StartDate;
+                // ChangedModel.EndTime = ChangedModel.StartTime;
 
                 // Reset places
                 PlaceName = string.Empty;
@@ -567,9 +567,9 @@
                 break;
 
             case ReservationType.Accomodation:
-                ChangedModel.EndDate = ChangedModel.StartDate.AddDays(1);
-                ChangedModel.StartTime = new TimeSpan(15, 0, 0);
-                ChangedModel.EndTime = new TimeSpan(11, 0, 0);
+                // ChangedModel.EndDate = ChangedModel.StartDate.AddDays(1);
+                // ChangedModel.StartTime = new TimeSpan(15, 0, 0);
+                // ChangedModel.EndTime = new TimeSpan(11, 0, 0);
 
                 // Reset places
                 DeparturePlaceName = string.Empty;
