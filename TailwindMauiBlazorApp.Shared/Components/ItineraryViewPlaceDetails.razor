@@ -12,13 +12,32 @@
                            class="form-control form-control-sm me-2"
                            rows="2" Disabled />
 
-            <a href=@($"https://www.google.com/maps/place/?q=place_id:{ExpandedItem.Place.GooglePlaceId}")
+            @* <a href=@($"https://www.google.com/maps/place/?q=place_id:{ExpandedItem.Place.GooglePlaceId}")
                target="_blank"
                rel="noopener noreferrer"
                class="btn btn-outline-secondary btn-sm me-1"
                title="Open in browser">
                 <i class="bi bi-box-arrow-up-right"></i>
+            </a> *@
+
+            <a href=@($"https://www.google.com/maps/search/?api=1&query={ExpandedItem.Place.Lat},{ExpandedItem.Place.Lng}")
+               target="_blank"
+               rel="noopener noreferrer"
+               class="btn btn-outline-secondary btn-sm me-1"
+               title="Open in browser">
+                <i class="fa-brands fa-google"></i>
             </a>
+
+            @if (isiPhone)
+            {
+                <a href=@($"maps://?q={ExpandedItem.Place.Lat},{ExpandedItem.Place.Lng}")
+                   target="_blank"
+                   rel="noopener noreferrer"
+                   class="btn btn-outline-secondary btn-sm me-1"
+                   title="Open in Apple Maps">
+                    <i class="fa-brands fa-apple"></i>
+                </a>
+            }
 
             @* <button type="button"
                     class="btn btn-outline-secondary btn-sm me-1"
@@ -85,14 +104,14 @@
             </button> *@
 
             <a href="@ExpandedItem.Url"
-               target="_blank" 
-            rel="noopener noreferrer" 
-            class="btn btn-outline-secondary btn-sm me-1"
-            title="Open in browser"> 
+               target="_blank"
+               rel="noopener noreferrer"
+               class="btn btn-outline-secondary btn-sm me-1"
+               title="Open in browser">
                 <i class="bi bi-box-arrow-up-right"></i>
             </a>
 
-           @*  <!-- Copy to clipboard -->
+            @*  <!-- Copy to clipboard -->
             <button type="button" class="btn btn-outline-secondary btn-sm me-2"
                     title="Copy to clipboard"
                     @onclick="() => CopyUrl(ExpandedItem.Url)"
@@ -101,7 +120,7 @@
             </button> *@
 
             <!-- Copied message only for URL -->
-           @*  <div class="ms-auto">
+            @*  <div class="ms-auto">
                 @if (copiedUrl)
                 {
                     <small class="text-success">Copied!</small>
