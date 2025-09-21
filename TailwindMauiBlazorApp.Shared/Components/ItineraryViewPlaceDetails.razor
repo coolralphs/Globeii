@@ -12,15 +12,23 @@
                            class="form-control form-control-sm me-2"
                            rows="2" Disabled />
 
-            <!-- Open in browser -->
-           @*  <button type="button"
+            <a href=@($"https://www.google.com/maps/place/?q=place_id:{ExpandedItem.Place.GooglePlaceId}")
+               target="_blank"
+               rel="noopener noreferrer"
+               class="btn btn-outline-secondary btn-sm me-1"
+               title="Open in browser">
+                <i class="bi bi-box-arrow-up-right"></i>
+            </a>
+
+            @* <button type="button"
                     class="btn btn-outline-secondary btn-sm me-1"
                     title="Open in Google Maps"
                     @onclick='() => OpenMap("google")'>
                 <i class="fa-brands fa-google"></i>
             </button> *@
 
-            <button type="button"
+            <!-- Open in browser -->
+            @*  <button type="button"
                     class="btn btn-outline-secondary btn-sm me-1"
                     title="Open in Google Maps"
                     @onclick='() => OpenMap("google")'>
@@ -35,29 +43,24 @@
                         @onclick='() => OpenMap("apple")'>
                     <i class="fa-brands fa-apple"></i>
                 </button>
-            }
+            } *@
 
 
             <!-- Copy to clipboard -->
-            <button type="button"
+            @*  <button type="button"
                     class="btn btn-outline-secondary btn-sm me-2"
                     title="Copy to clipboard"
                     @onclick="() => CopyAddress(ExpandedItem.Place.FormattedAddress)">
                 <i class="bi bi-copy"></i>
-            </button>
-
-          @*   <button @onclick='() => JS.InvokeVoidAsync("navigator.clipboard.writeText", ExpandedItem.Place.FormattedAddress)'>
-                Copy URL
             </button> *@
 
-
             <!-- Copied message only for Address -->
-            <div class="ms-auto">
+            @*  <div class="ms-auto">
                 @if (copiedAddress)
                 {
                     <small class="text-success">Copied!</small>
                 }
-            </div>
+            </div> *@
         </div>
 
     </div>
@@ -66,7 +69,7 @@
         <label class="form-label"><strong>Notes:</strong></label>
         <InputTextArea @bind-Value="ExpandedItem.Notes"
                        class="form-control form-control-sm"
-                       rows="3" disabled/>
+                       rows="3" disabled />
     </div>
 
     <div class="mb-2">
@@ -75,27 +78,35 @@
             <TextInput @bind-Value="ExpandedItem.Url" class="form-control form-control-sm me-2" />
 
             <!-- Open in browser -->
-            <button type="button" class="btn btn-outline-secondary btn-sm me-1"
+            @* <button type="button" class="btn btn-outline-secondary btn-sm me-1"
                     title="Open in browser"
                     @onclick="() => OpenUrl(ExpandedItem.Url)">
                 <i class="bi bi-box-arrow-up-right"></i>
-            </button>
+            </button> *@
 
-            <!-- Copy to clipboard -->
+            <a href="@ExpandedItem.Url"
+               target="_blank" 
+            rel="noopener noreferrer" 
+            class="btn btn-outline-secondary btn-sm me-1"
+            title="Open in browser"> 
+                <i class="bi bi-box-arrow-up-right"></i>
+            </a>
+
+           @*  <!-- Copy to clipboard -->
             <button type="button" class="btn btn-outline-secondary btn-sm me-2"
                     title="Copy to clipboard"
                     @onclick="() => CopyUrl(ExpandedItem.Url)"
                     disabled>
                 <i class="bi bi-copy"></i>
-            </button>
+            </button> *@
 
             <!-- Copied message only for URL -->
-            <div class="ms-auto">
+           @*  <div class="ms-auto">
                 @if (copiedUrl)
                 {
                     <small class="text-success">Copied!</small>
                 }
-            </div>
+            </div> *@
         </div>
     </div>
 
@@ -141,22 +152,11 @@
     {
         if (ExpandedItem?.Place == null) return;
 
-        var lat = ExpandedItem.Place.Lat;
-        var lng = ExpandedItem.Place.Lng;
-        if (lat == 0 || lng == 0) return;
-
-        string url;
-        if (mapType == "apple")
-        {
-            url = $"maps://?q={lat},{lng}"; // opens Apple Maps app on iOS
-        }
-        else
-        {
-            var placeId = ExpandedItem.Place.GooglePlaceId;
-            url = $"https://www.google.com/maps/place/?q=place_id:{placeId}";
-        }
-
-        JS.InvokeVoidAsync("open", url, "_blank");
+        JS.InvokeVoidAsync("openMaps",
+            ExpandedItem.Place.GooglePlaceId,
+            ExpandedItem.Place.Lat,
+            ExpandedItem.Place.Lng,
+            mapType);
     }
 
     private void OpenUrl(string? url)
@@ -169,20 +169,19 @@
                 url = "https://" + url;
             }
 
-            JS.InvokeVoidAsync("open", url, "_blank");
+            // JS.InvokeVoidAsync("open", url, "_blank");
             // JsInterop.CopyTextToClipboard("open", url, "_blank");
         }
     }
 
-    private void CopyAddress(string value)
+    private async Task CopyAddress(string value)
     {
         if (string.IsNullOrWhiteSpace(value)) return;
 
         // Call JS immediately
 
         // JS.InvokeVoidAsync("navigator.clipboard.writeText", value);
-        JS.InvokeVoidAsync("navigator.clipboard.writeText", value);
-        // await JsInterop.CopyTextToClipboard(value);
+        await JsInterop.CopyTextToClipboard(value);
 
 
         // Show “Copied” message
@@ -202,7 +201,7 @@
     private void CopyUrl(string value)
     {
         if (string.IsNullOrWhiteSpace(value)) return;
-        
+
         JS.InvokeVoidAsync("navigator.clipboard.writeText", value);
 
         copiedUrl = true;

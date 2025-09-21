@@ -42,8 +42,8 @@
 
         @if (isConfigOpen)
         {
-                <div class="d-flex gap-4 p-3 border rounded w-100 mb-3 time-config-container">
-                    <!-- Day starts at -->
+                        <div class="d-flex gap-4 p-3 border rounded w-100 mb-3 time-config-container">
+                            <!-- Day starts at -->
             <div class="d-flex flex-column" style="min-width: 150px;">
                 <div class="d-flex align-items-center mb-1">
                     <label class="form-label mb-0 me-1">Day starts at:</label>
@@ -177,226 +177,228 @@
                 <ul style="padding-left: 0; margin-left: 0; list-style: none;">
                     @foreach (var item in group.ItineraryPlaces)
                     {
-                        <div style="min-height:60px; display:flex; align-items:center;">
-                            @{
-                                var index = group.ItineraryPlaces.IndexOf(item);
-                            }
+                        <li class="list-group-item p-2 text-white">
+                            <div style="min-height:60px; display:flex; align-items:center;">
+                                @{
+                                    var index = group.ItineraryPlaces.IndexOf(item);
+                                }
 
-                            <div class="d-flex align-items-center @(highlightItems.Contains(item) ? "bg-success text-white" : (_highlightedItem == item ? "active" : ""))"
-                                 style="gap: 8px; width: 100%; min-width: 0; box-sizing: border-box;">
+                                <div class="d-flex align-items-center @(highlightItems.Contains(item) ? "bg-success text-white" : (_highlightedItem == item ? "active" : ""))"
+                                     style="gap: 8px; width: 100%; min-width: 0; box-sizing: border-box;">
 
-                                @* <div class="bb-sortable-list-handle d-flex justify-content-center align-items-center"
+                                    @* <div class="bb-sortable-list-handle d-flex justify-content-center align-items-center"
                                      style="width: 30px; flex-shrink: 0; padding-left: 0px; cursor:@(_highlightedItem == item ? "default" : "grab");"> *@
 
-                                <div class="d-flex justify-content-center align-items-center"
-                                     style="flex-shrink: 0; padding-left: 0px; cursor:@(_highlightedItem == item ? "default" : "grab");">
+                                    <div class="d-flex justify-content-center align-items-center"
+                                         style="flex-shrink: 0; padding-left: 0px; cursor:@(_highlightedItem == item ? "default" : "grab");">
 
-                                    @if (highlightItems.Contains(item) || SwapFirstItem == item || MoveFirstItem == item)
-                                    {
-                                        if (highlightItems.Count > 1)
+                                        @if (highlightItems.Contains(item) || SwapFirstItem == item || MoveFirstItem == item)
                                         {
-                                            if (SwapFirstItem is not null)
+                                            if (highlightItems.Count > 1)
                                             {
-                                                <i class="bi bi-shuffle" style="font-size: 1.2rem; padding-left:8px;"></i>
-                                            }
-                                            else if (MoveFirstItem is not null)
-                                            {
-                                                <i class="bi bi-box-arrow-left" style="font-size: 1.2rem; padding-left:8px;"></i>
-                                            }
-                                        }
-                                        else if (highlightItems.Count == 1)
-                                        {
-                                            if (SwapFirstItem == item)
-                                            {
-                                                <div class="d-flex align-items-center">
-                                                    <!-- Swap icon -->
-                                                    <i class="bi bi-shuffle" style="font-size: 1.2rem; padding-left:8px; cursor: default;"></i>
-
-                                                    <!-- Cancel button -->
-                                                    <button type="button"
-                                                            class="btn btn-danger btn-sm rounded-circle d-flex align-items-center justify-content-center ms-1"
-                                                            title="Cancel Swap"
-                                                            @onclick="() => CancelSwap()"
-                                                            style="width: 24px; height: 24px; line-height: 1; border: 1px solid white;">
-                                                        <i class="bi bi-x" style="font-size: 0.9rem; color: white;"></i>
-                                                    </button>
-                                                </div>
-                                                @* <i class="bi bi-shuffle" style="font-size: 1.2rem; padding-left:8px;"></i> *@
-                                            }
-                                            if (MoveFirstItem == item)
-                                            {
-                                                <div class="d-flex align-items-center">
-                                                    <!-- Move icon -->
-                                                    <i class="bi bi-box-arrow-left" style="font-size: 1.2rem; padding-left:8px; cursor: default;"></i>
-
-                                                    <!-- Cancel button -->
-                                                    <button type="button"
-                                                            class="btn btn-danger btn-sm rounded-circle d-flex align-items-center justify-content-center ms-1"
-                                                            title="Cancel Move"
-                                                            @onclick="() => CancelMove()"
-                                                            style="width: 24px; height: 24px; line-height: 1; border: 1px solid white;">
-                                                        <i class="bi bi-x" style="font-size: 0.9rem; color: white;"></i>
-                                                    </button>
-                                                </div>
-                                            }
-                                            else if (SwapFirstItem is null)
-                                            {
-                                                <i class="bi bi-check2" style="font-size: 1.2rem; padding-left:8px;"></i>
-                                            }
-
-
-                                        }
-                                    }
-                                    else if (SwapFirstItem is not null)
-                                    {
-                                        <button class="btn btn-primary d-flex align-items-center justify-content-center"
-                                                @onclick="() => SwapItems(item)"
-                                                style="gap: 6px; width: 32px; height: 32px; padding:0px !important;">
-                                            <i class="bi bi-shuffle d-flex align-items-center justify-content-center"
-                                               style="font-size: 1.2rem;"
-                                               title="Swap here"></i>
-                                        </button>
-                                    }
-                                    else if (MoveFirstItem is not null)
-                                    {
-                                        <button class="btn btn-primary d-flex align-items-center justify-content-center"
-                                                @onclick="() => OnMenuItemClicked(group, item, MenuOption.Move)"
-                                                style="gap: 6px; width: 32px; height: 32px; padding:0px !important;">
-                                            <i class="bi bi-box-arrow-in-right d-flex align-items-center justify-content-center"
-                                               style="font-size: 1.2rem;"
-                                               title="Move here"></i>
-                                        </button>
-                                    }
-                                    else
-                                    {
-                                        @* <Icon Name="IconName.GripVertical" /> *@
-                                    }
-
-                                </div>
-
-                                <!-- Thumbnail -->
-                                <div class="thumbnail-container" style="flex-shrink: 0;">
-                                    <img src="@(item.Place.ThumbnailUrl ?? "https://placehold.co/400x300?text=No+Image")"
-                                         alt="@item.Place.DisplayName"
-                                         class="thumbnail"
-                                         style="width:60px; height:60px; object-fit:cover; border-radius:4px;"
-                                         @onclick='() => ShowImage(item.Place.ThumbnailUrl ?? "https://placehold.co/400x300?text=No+Image", item.Place.DisplayName)' />
-                                </div>
-
-                                <!-- Main content (title + time input stacked) -->
-                                <div class="flex-grow-1 d-flex flex-column" style="min-width:0; overflow:hidden;">
-                                    <div class="text-truncate fw-bold">
-                                        @item.Place.DisplayName
-                                    </div>
-                                    <div style="max-width: 140px;">
-                                        <InputTimeSpan Value="@item.StartTime"
-                                                       ValueChanged="v => item.StartTime = v"
-                                                       CssClass="form-control form-control-sm"
-                                                       OnChange="e => OnItemStartTimeChanged(group, item, item.StartTime)" />
-                                    </div>
-                                </div>
-
-                                <!-- Menu button on the right -->
-                                <div class="dropdown-wrapper" style="position: relative; overflow: visible; width: 36px; height: 36px; flex-shrink: 0; z-index: 3 !important;">
-                                    <button class="btn btn-primary d-flex align-items-center justify-content-center p-1"
-                                            @onclick="() => ToggleMenu(item)"
-                                            style="gap: 6px; width: 32px; height: 32px;">
-                                        <span class="bi bi-list"></span>
-                                    </button>
-
-                                    @if (IsMenuOpenForItem(item))
-                                    {
-                                        <div class="menu-dropdown shadow border rounded mt-1"
-                                             style="width: 180px; position: absolute; top: 100%; right: 100%; left:auto; white-space: nowrap; z-index: 9999 !important;">
-                                            <ul class="list-unstyled mb-0 py-2">
-                                                <li>
-                                                    <button class="dropdown-item w-100 text-start"
-                                                            @onclick='() => OnMenuItemClicked(group, item, MenuOption.Adjust)'>
-                                                        <i class="bi bi-clock me-1"></i> Adjust Date/Time
-                                                    </button>
-                                                </li>
-                                                <li>
-                                                    <button class="dropdown-item w-100 text-start"
-                                                            @onclick='() => OnMenuItemClicked(group, item, MenuOption.Move)'>
-                                                        <i class="bi bi-box-arrow-left me-1"></i>
-                                                        @(
-                                                                                                MoveFirstItem == null
-                                                                                                ? "Move This"
-                                                                                                : MoveFirstItem == item
-                                                                                                ? "Cancel Move"
-                                                                                                : "Move Now"
-                                                                                                )
-                                                    </button>
-                                                </li>
-                                                <li>
-                                                    <button class="dropdown-item w-100 text-start"
-                                                            @onclick='() => OnMenuItemClicked(group, item, MenuOption.Swap)'>
-                                                        <i class="bi bi-shuffle me-1"></i>
-                                                        @(
-                                                                                                SwapFirstItem == null
-                                                                                                ? "Enter Swap"
-                                                                                                : SwapFirstItem == item
-                                                                                                ? "Cancel Swap"
-                                                                                                : "Swap Now"
-                                                                                                )
-                                                </button>
-                                            </li>
-                                            <!-- Schedule main label -->
-                                            <li class="ps-3 pt-1 pb-1 w-100 text-start text-muted">
-                                                <i class="bi bi-arrow-down-up me-1"></i> Shift (This Day)
-                                            </li>
-                                            <li>
-                                                <button class="dropdown-item w-100 text-start"
-                                                        @onclick='() => OnMenuItemClicked(group, item, MenuOption.ShiftEnding)'>
-                                                    <i class="bi bi-arrow-90deg-up me-1" style="padding-left:15px;"></i> Ending Here
-                                                </button>
-                                            </li>
-                                            <li>
-                                                <button class="dropdown-item w-100 text-start"
-                                                        @onclick='() => OnMenuItemClicked(group, item, MenuOption.ShiftStarting)'>
-                                                    <i class="bi bi-arrow-90deg-down me-1" style="padding-left:15px;"></i> Starting Here
-                                                </button>
-                                            </li>
-                                            <li><hr class="dropdown-divider my-1"></li>
-                                            <li>
-                                                <button class="dropdown-item w-100 text-start"
-                                                        @onclick='() => OnMenuItemClicked(group, item, MenuOption.SaveForLater)'>
-                                                    <i class="bi bi-bookmark me-1"></i> Save For Later
-                                                </button>
-                                            </li>
-                                            <li><hr class="dropdown-divider my-1"></li>
-                                            <li>
-                                                <button class="dropdown-item w-100 text-start"
-                                                        @onclick='() => OnMenuItemClicked(group, item, MenuOption.Remove)'>
-                                                    <i class="bi bi-trash me-1 text-danger"></i> Remove
-                                                </button>
-                                            </li>
-                                            <li><hr class="dropdown-divider my-1"></li>
-                                            <li>
-                                                <button class="dropdown-item w-100 text-start"
-                                                        @onclick='() => OnMenuItemClicked(group, item, MenuOption.EditDetails)'>
-                                                    <i class="bi bi-list-ul me-1"></i> @(IsExpanded(item) ? "Hide " : "Show ") Details
-                                                </button>
-                                            </li>
-                                        </ul>
-                                    </div>
+                                                if (SwapFirstItem is not null)
+                                                {
+                                                    <i class="bi bi-shuffle" style="font-size: 1.2rem; padding-left:8px;"></i>
                                                 }
-                                </div>
-                            </div>
+                                                else if (MoveFirstItem is not null)
+                                                {
+                                                    <i class="bi bi-box-arrow-left" style="font-size: 1.2rem; padding-left:8px;"></i>
+                                                }
+                                            }
+                                            else if (highlightItems.Count == 1)
+                                            {
+                                                if (SwapFirstItem == item)
+                                                {
+                                                    <div class="d-flex align-items-center">
+                                                        <!-- Swap icon -->
+                                                        <i class="bi bi-shuffle" style="font-size: 1.2rem; padding-left:8px; cursor: default;"></i>
 
-                            @if (IsExpanded(item))
-                            {
-                                <div class="card mt-1 border shadow-sm">
-                                    <div class="card-header d-flex align-items-center">
-                                        <strong>@item.Place.DisplayName</strong>
-                                        <button class="btn btn-sm btn-outline-secondary ms-auto"
-                                                @onclick="() => TogglePlaceDetails(item)">
-                                            <i class="bi bi-chevron-up"></i>
+                                                        <!-- Cancel button -->
+                                                        <button type="button"
+                                                                class="btn btn-danger btn-sm rounded-circle d-flex align-items-center justify-content-center ms-1"
+                                                                title="Cancel Swap"
+                                                                @onclick="() => CancelSwap()"
+                                                                style="width: 24px; height: 24px; line-height: 1; border: 1px solid white;">
+                                                            <i class="bi bi-x" style="font-size: 0.9rem; color: white;"></i>
+                                                        </button>
+                                                    </div>
+                                                    @* <i class="bi bi-shuffle" style="font-size: 1.2rem; padding-left:8px;"></i> *@
+                                                }
+                                                if (MoveFirstItem == item)
+                                                {
+                                                    <div class="d-flex align-items-center">
+                                                        <!-- Move icon -->
+                                                        <i class="bi bi-box-arrow-left" style="font-size: 1.2rem; padding-left:8px; cursor: default;"></i>
+
+                                                        <!-- Cancel button -->
+                                                        <button type="button"
+                                                                class="btn btn-danger btn-sm rounded-circle d-flex align-items-center justify-content-center ms-1"
+                                                                title="Cancel Move"
+                                                                @onclick="() => CancelMove()"
+                                                                style="width: 24px; height: 24px; line-height: 1; border: 1px solid white;">
+                                                            <i class="bi bi-x" style="font-size: 0.9rem; color: white;"></i>
+                                                        </button>
+                                                    </div>
+                                                }
+                                                else if (SwapFirstItem is null)
+                                                {
+                                                    <i class="bi bi-check2" style="font-size: 1.2rem; padding-left:8px;"></i>
+                                                }
+
+
+                                            }
+                                        }
+                                        else if (SwapFirstItem is not null)
+                                        {
+                                            <button class="btn btn-primary d-flex align-items-center justify-content-center"
+                                                    @onclick="() => SwapItems(item)"
+                                                    style="gap: 6px; width: 32px; height: 32px; padding:0px !important;">
+                                                <i class="bi bi-shuffle d-flex align-items-center justify-content-center"
+                                                   style="font-size: 1.2rem;"
+                                                   title="Swap here"></i>
+                                            </button>
+                                        }
+                                        else if (MoveFirstItem is not null)
+                                        {
+                                            <button class="btn btn-primary d-flex align-items-center justify-content-center"
+                                                    @onclick="() => OnMenuItemClicked(group, item, MenuOption.Move)"
+                                                    style="gap: 6px; width: 32px; height: 32px; padding:0px !important;">
+                                                <i class="bi bi-box-arrow-in-right d-flex align-items-center justify-content-center"
+                                                   style="font-size: 1.2rem;"
+                                                   title="Move here"></i>
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            @* <Icon Name="IconName.GripVertical" /> *@
+                                        }
+
+                                    </div>
+
+                                    <!-- Thumbnail -->
+                                    <div class="thumbnail-container" style="flex-shrink: 0;">
+                                        <img src="@(item.Place.ThumbnailUrl ?? "https://placehold.co/400x300?text=No+Image")"
+                                             alt="@item.Place.DisplayName"
+                                             class="thumbnail"
+                                             style="width:60px; height:60px; object-fit:cover; border-radius:4px;"
+                                             @onclick='() => ShowImage(item.Place.ThumbnailUrl ?? "https://placehold.co/400x300?text=No+Image", item.Place.DisplayName)' />
+                                    </div>
+
+                                    <!-- Main content (title + time input stacked) -->
+                                    <div class="flex-grow-1 d-flex flex-column" style="min-width:0; overflow:hidden;">
+                                        <div class="text-truncate fw-bold">
+                                            @item.Place.DisplayName
+                                        </div>
+                                        <div style="max-width: 140px;">
+                                            <InputTimeSpan Value="@item.StartTime"
+                                                           ValueChanged="v => item.StartTime = v"
+                                                           CssClass="form-control form-control-sm"
+                                                           OnChange="e => OnItemStartTimeChanged(group, item, item.StartTime)" />
+                                        </div>
+                                    </div>
+
+                                    <!-- Menu button on the right -->
+                                    <div class="dropdown-wrapper" style="position: relative; overflow: visible; width: 36px; height: 36px; flex-shrink: 0; z-index: 3 !important;">
+                                        <button class="btn btn-primary d-flex align-items-center justify-content-center p-1"
+                                                @onclick="() => ToggleMenu(item)"
+                                                style="gap: 6px; width: 32px; height: 32px;">
+                                            <span class="bi bi-list"></span>
                                         </button>
+
+                                        @if (IsMenuOpenForItem(item))
+                                        {
+                                            <div class="menu-dropdown shadow border rounded mt-1"
+                                                 style="width: 180px; position: absolute; top: 100%; right: 100%; left:auto; white-space: nowrap; z-index: 9999 !important;">
+                                                <ul class="list-unstyled mb-0 py-2">
+                                                    <li>
+                                                        <button class="dropdown-item w-100 text-start"
+                                                                @onclick='() => OnMenuItemClicked(group, item, MenuOption.Adjust)'>
+                                                            <i class="bi bi-clock me-1"></i> Adjust Date/Time
+                                                        </button>
+                                                    </li>
+                                                    <li>
+                                                        <button class="dropdown-item w-100 text-start"
+                                                                @onclick='() => OnMenuItemClicked(group, item, MenuOption.Move)'>
+                                                            <i class="bi bi-box-arrow-left me-1"></i>
+                                                            @(
+                                                                                                        MoveFirstItem == null
+                                                                                                        ? "Move This"
+                                                                                                        : MoveFirstItem == item
+                                                                                                        ? "Cancel Move"
+                                                                                                        : "Move Now"
+                                                                                                        )
+                                                        </button>
+                                                    </li>
+                                                    <li>
+                                                        <button class="dropdown-item w-100 text-start"
+                                                                @onclick='() => OnMenuItemClicked(group, item, MenuOption.Swap)'>
+                                                            <i class="bi bi-shuffle me-1"></i>
+                                                            @(
+                                                                                                        SwapFirstItem == null
+                                                                                                        ? "Enter Swap"
+                                                                                                        : SwapFirstItem == item
+                                                                                                        ? "Cancel Swap"
+                                                                                                        : "Swap Now"
+                                                                                                        )
+                                                    </button>
+                                                </li>
+                                                <!-- Schedule main label -->
+                                                <li class="ps-3 pt-1 pb-1 w-100 text-start text-muted">
+                                                    <i class="bi bi-arrow-down-up me-1"></i> Shift (This Day)
+                                                </li>
+                                                <li>
+                                                    <button class="dropdown-item w-100 text-start"
+                                                            @onclick='() => OnMenuItemClicked(group, item, MenuOption.ShiftEnding)'>
+                                                        <i class="bi bi-arrow-90deg-up me-1" style="padding-left:15px;"></i> Ending Here
+                                                    </button>
+                                                </li>
+                                                <li>
+                                                    <button class="dropdown-item w-100 text-start"
+                                                            @onclick='() => OnMenuItemClicked(group, item, MenuOption.ShiftStarting)'>
+                                                        <i class="bi bi-arrow-90deg-down me-1" style="padding-left:15px;"></i> Starting Here
+                                                    </button>
+                                                </li>
+                                                <li><hr class="dropdown-divider my-1"></li>
+                                                <li>
+                                                    <button class="dropdown-item w-100 text-start"
+                                                            @onclick='() => OnMenuItemClicked(group, item, MenuOption.SaveForLater)'>
+                                                        <i class="bi bi-bookmark me-1"></i> Save For Later
+                                                    </button>
+                                                </li>
+                                                <li><hr class="dropdown-divider my-1"></li>
+                                                <li>
+                                                    <button class="dropdown-item w-100 text-start"
+                                                            @onclick='() => OnMenuItemClicked(group, item, MenuOption.Remove)'>
+                                                        <i class="bi bi-trash me-1 text-danger"></i> Remove
+                                                    </button>
+                                                </li>
+                                                <li><hr class="dropdown-divider my-1"></li>
+                                                <li>
+                                                    <button class="dropdown-item w-100 text-start"
+                                                            @onclick='() => OnMenuItemClicked(group, item, MenuOption.EditDetails)'>
+                                                        <i class="bi bi-list-ul me-1"></i> @(IsExpanded(item) ? "Hide " : "Show ") Details
+                                                    </button>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                                        }
                                     </div>
                                 </div>
-                            }
-                        </div>
+
+                                @if (IsExpanded(item))
+                                {
+                                    <div class="card mt-1 border shadow-sm">
+                                        <div class="card-header d-flex align-items-center">
+                                            <strong>@item.Place.DisplayName</strong>
+                                            <button class="btn btn-sm btn-outline-secondary ms-auto"
+                                                    @onclick="() => TogglePlaceDetails(item)">
+                                                <i class="bi bi-chevron-up"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </li>
                     }
                 </ul>
                 @* </ItemTemplate>
