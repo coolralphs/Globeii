@@ -68,7 +68,7 @@
                     <label>@DateTime.Parse(group.Date).ToString("dddd, MMMM d, yyyy")</label>
                 </div>
 
-                <SortableList TItem="ItineraryPlaceViewModel"
+              @*   <SortableList TItem="ItineraryPlaceViewModel"
                               Group=""
                               Name="@group.Date"
                               Data="@group.ItineraryPlaces"
@@ -77,97 +77,102 @@
                               Class="sortable-container"
                               Id="@($"sortable-{group.Date}")"
                               AllowSorting="false">
-                    <ItemTemplate>
-                        <div style="min-height:60px; display:flex; align-items:center;">
-                            @{
-                                var index = group.ItineraryPlaces.IndexOf(item);
-                                DateTime itemDate = item.StartDate;
-                                string dayName = DaysOfWeek[(int)itemDate.DayOfWeek];
-                                string dayColor = DayColors.ContainsKey(dayName) ? DayColors[dayName] : "#999999";
-                            }
+                    <ItemTemplate> *@
+                <ul style="padding-left: 0; margin-left: 0; list-style: none;">
+                        @foreach (var item in group.ItineraryPlaces)
+                         {
+                             <li class="list-group-item p-2 text-white">
 
-                            <div class="d-flex align-items-center" style="gap: 8px; width: 100%; min-width: 0; box-sizing: border-box; justify-content: space-between;">
-                                <!-- Left part: thumbnail + title + time -->
-                                <div class="d-flex align-items-center" style="gap: 8px; min-width: 0;">
+                    <div style="min-height:60px; display:flex; align-items:center;">
+                        @{
+                            var index = group.ItineraryPlaces.IndexOf(item);
+                            DateTime itemDate = item.StartDate;
+                            string dayName = DaysOfWeek[(int)itemDate.DayOfWeek];
+                            string dayColor = DayColors.ContainsKey(dayName) ? DayColors[dayName] : "#999999";
+                        }
 
-                                    <div class="thumbnail-container p-1" style="flex-shrink: 0;">
-                                        <img src="@(item.Place.ThumbnailUrl ?? "https://placehold.co/400x300?text=No+Image")"
-                                             alt="@item.Place.DisplayName"
-                                             class="thumbnail"
-                                             style="width:60px; height:60px; object-fit:cover; border-radius:4px;"
-                                             @onclick='() => ShowImage(item.Place.ThumbnailUrl ?? "https://placehold.co/400x300?text=No+Image", item.Place.DisplayName)' />
+                        <div class="d-flex align-items-center" style="gap: 8px; width: 100%; min-width: 0; box-sizing: border-box; justify-content: space-between;">
+                            <!-- Left part: thumbnail + title + time -->
+                            <div class="d-flex align-items-center" style="gap: 8px; min-width: 0;">
+
+                                <div class="thumbnail-container p-1" style="flex-shrink: 0;">
+                                    <img src="@(item.Place.ThumbnailUrl ?? "https://placehold.co/400x300?text=No+Image")"
+                                         alt="@item.Place.DisplayName"
+                                         class="thumbnail"
+                                         style="width:60px; height:60px; object-fit:cover; border-radius:4px;"
+                                         @onclick='() => ShowImage(item.Place.ThumbnailUrl ?? "https://placehold.co/400x300?text=No+Image", item.Place.DisplayName)' />
+                                </div>
+
+                                <div class="d-flex flex-column ps-1" style="min-width:0; overflow:hidden;">
+                                    <div class="text-truncate fw-bold">
+                                        <i class="bi bi-geo-alt-fill" style="color:@dayColor"></i>
+                                        @item.Place.DisplayName
                                     </div>
-
-                                    <div class="d-flex flex-column ps-1" style="min-width:0; overflow:hidden;">
-                                        <div class="text-truncate fw-bold">
-                                            <i class="bi bi-geo-alt-fill" style="color:@dayColor"></i>
-                                            @item.Place.DisplayName
+                                    @if (item.Place.PrimaryTypeDisplayName is not null)
+                                    {
+                                        <div class="text-truncate small text-muted">
+                                            <i class="bi bi-binoculars-fill text-secondary"></i>
+                                            @item.Place.PrimaryTypeDisplayName
                                         </div>
-                                        @if (item.Place.PrimaryTypeDisplayName is not null)
-                                        {
-                                            <div class="text-truncate small text-muted">
-                                                <i class="bi bi-binoculars-fill text-secondary"></i>
-                                                @item.Place.PrimaryTypeDisplayName
-                                            </div>
-                                        }
-                                        else
-                                        {
-                                            var priorityOrder = new List<string>
+                                    }
+                                    else
+                                    {
+                                        var priorityOrder = new List<string>
                                                 {
                                                 "tourist_attraction",
                                                 "historical_place"
                                                 };
 
-                                            string? displayType = null;
+                                        string? displayType = null;
 
-                                            if (item.Place?.Types is not null && item.Place.Types.Any())
+                                        if (item.Place?.Types is not null && item.Place.Types.Any())
+                                        {
+                                            // Try to get from priority order
+                                            displayType = priorityOrder
+                                            .FirstOrDefault(p => item.Place.Types.Contains(p));
+
+                                            // If none matched, fallback to first available type
+                                            displayType ??= item.Place.Types.First();
+                                        }
+
+                                        if (!string.IsNullOrEmpty(displayType))
+                                        {
+                                            <div class="text-truncate small text-muted">
+                                                <i class="bi bi-binoculars-fill text-secondary"></i>
+                                                @ToDisplayName(displayType)
+                                            </div>
+                                        }
+                                    }
+
+                                    <div class="text-truncate small d-flex align-items-center" style="gap: 0.25rem;">
+                                        @* Star icons for double Rating *@
+                                        @for (int i = 1; i <= 5; i++)
+                                        {
+                                            var starColor = "#D4AF37"; // Softer gold for dark theme
+
+                                            if (item.Place.Rating >= i)
                                             {
-                                                // Try to get from priority order
-                                                displayType = priorityOrder
-                                                .FirstOrDefault(p => item.Place.Types.Contains(p));
-
-                                                // If none matched, fallback to first available type
-                                                displayType ??= item.Place.Types.First();
+                                                <i class="bi bi-star-fill" style="color:@starColor"></i>  @* full star *@
                                             }
-
-                                            if (!string.IsNullOrEmpty(displayType))
+                                            else if (item.Place.Rating >= i - 0.5)
                                             {
-                                                <div class="text-truncate small text-muted">
-                                                    <i class="bi bi-binoculars-fill text-secondary"></i>
-                                                    @ToDisplayName(displayType)
-                                                </div>
+                                                <i class="bi bi-star-half" style="color:@starColor"></i>  @* half star *@
+                                            }
+                                            else
+                                            {
+                                                <i class="bi bi-star" style="color:#555555"></i>  @* empty star *@
                                             }
                                         }
 
-                                        <div class="text-truncate small d-flex align-items-center" style="gap: 0.25rem;">
-                                            @* Star icons for double Rating *@
-                                            @for (int i = 1; i <= 5; i++)
-                                            {
-                                                var starColor = "#D4AF37"; // Softer gold for dark theme
+                                        <span>@(item.Place.Rating.HasValue? item.Place.Rating.Value.ToString("0.0") : "0.0")</span>
 
-                                                if (item.Place.Rating >= i)
-                                                {
-                                                    <i class="bi bi-star-fill" style="color:@starColor"></i>  @* full star *@
-                                                }
-                                                else if (item.Place.Rating >= i - 0.5)
-                                                {
-                                                    <i class="bi bi-star-half" style="color:@starColor"></i>  @* half star *@
-                                                }
-                                                else
-                                                {
-                                                    <i class="bi bi-star" style="color:#555555"></i>  @* empty star *@
-                                                }
-                                            }
-
-                                            <span>@(item.Place.Rating.HasValue? item.Place.Rating.Value.ToString("0.0") : "0.0")</span>
-
-                                            @* Nullable user rating count *@
-                                            @if (item.Place.UserRatingCount.HasValue)
-                                            {
-                                                <span class="text-muted">(@FormatCount(item.Place.UserRatingCount.Value))</span>
-                                            }
-                                        </div>
-                                        @*  <div class="small d-flex align-items-center">
+                                        @* Nullable user rating count *@
+                                        @if (item.Place.UserRatingCount.HasValue)
+                                        {
+                                            <span class="text-muted">(@FormatCount(item.Place.UserRatingCount.Value))</span>
+                                        }
+                                    </div>
+                                    @*  <div class="small d-flex align-items-center">
                                             <i class="bi bi-clock-fill text-primary me-1"></i>
                                             <span>@FormatTime(item.StartTime)</span>
 
@@ -177,53 +182,56 @@
                                                 <span class="small ps-1">@GetOpeningHours(item.Place, item.StartDate)</span>
                                             }
                                         </div> *@
-                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="d-flex flex-column align-items-end ms-auto" style="gap:4px; min-width:70px;">
+                                <!-- Time in top-right -->
+                                <div class="small text-muted pe-1">
+                                    <span>@FormatTime(item.StartTime)</span>
                                 </div>
 
-                                <div class="d-flex flex-column align-items-end ms-auto" style="gap:4px; min-width:70px;">
-                                    <!-- Time in top-right -->
-                                    <div class="small text-muted pe-1">
-                                        <span>@FormatTime(item.StartTime)</span>
-                                    </div>
+                                <!-- Bottom-right: icons + dropdown in one row -->
+                                <div class="d-flex align-items-center justify-content-end gap-2">
+                                    <!-- Icons -->
+                                    @if ((!item.IsPaid && item.PrePaymentRequired) || (!item.IsBooked && item.BookingRequired))
+                                    {
+                                        <i class="bi bi-exclamation-triangle-fill text-danger" title="Needs payment or booking"></i>
+                                    }
+                                    @if (item.Notes is not null && item.Notes.Length > 0)
+                                    {
+                                        <i class="bi bi-sticky" style="color: #FFD966;" title="Has notes"></i>
+                                    }
+                                    @if (item.Url is not null && item.Url.Length > 0)
+                                    {
+                                        <i class="bi-link-45deg" title="Has URL"></i>
+                                    }
+                                    @if (item.IsBooked)
+                                    {
+                                        <i class="bi bi-qr-code" title="Is booked/reserved"></i>
+                                    }
+                                    @if (item.IsPaid)
+                                    {
+                                        <i class="bi bi-currency-dollar text-success" title="Is paid"></i>
+                                    }
 
-                                    <!-- Bottom-right: icons + dropdown in one row -->
-                                    <div class="d-flex align-items-center justify-content-end gap-2">
-                                        <!-- Icons -->
-                                        @if ((!item.IsPaid && item.PrePaymentRequired) || (!item.IsBooked && item.BookingRequired))
-                                        {
-                                            <i class="bi bi-exclamation-triangle-fill text-danger" title="Needs payment or booking"></i>
-                                        }
-                                        @if (item.Notes is not null && item.Notes.Length > 0)
-                                        {
-                                            <i class="bi bi-sticky" style="color: #FFD966;" title="Has notes"></i>
-                                        }
-                                        @if (item.Url is not null && item.Url.Length > 0)
-                                        {
-                                            <i class="bi-link-45deg" title="Has URL"></i>
-                                        }
-                                        @if (item.IsBooked)
-                                        {
-                                            <i class="bi bi-qr-code" title="Is booked/reserved"></i>
-                                        }
-                                        @if (item.IsPaid)
-                                        {
-                                            <i class="bi bi-currency-dollar text-success" title="Is paid"></i>
-                                        }
-
-                                        <!-- Dropdown menu (same row as icons) -->
-                                        <div class="dropdown-wrapper" style="position: relative; overflow: visible; width: 36px; height: 36px; flex-shrink: 0; z-index: 3 !important;">
-                                            <button class="btn btn-primary d-flex align-items-center justify-content-center p-1"
-                                                    style="gap: 6px; width: 32px; height: 32px;"
-                                                    @onclick='() => OpenDetailsModal(item)'>
-                                                <span class="bi bi-list-ul"></span>
-                                            </button>
-                                        </div>
+                                    <!-- Dropdown menu (same row as icons) -->
+                                    <div class="dropdown-wrapper" style="position: relative; overflow: visible; width: 36px; height: 36px; flex-shrink: 0; z-index: 3 !important;">
+                                        <button class="btn btn-primary d-flex align-items-center justify-content-center p-1"
+                                                style="gap: 6px; width: 32px; height: 32px;"
+                                                @onclick='() => OpenDetailsModal(item)'>
+                                            <span class="bi bi-list-ul"></span>
+                                        </button>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                    </ItemTemplate>
-                </SortableList>
+                                </div>
+                                    </li>
+                        }
+                       </ul>
+                   @*  </ItemTemplate>
+                </SortableList> *@
             </div>
         }
     }

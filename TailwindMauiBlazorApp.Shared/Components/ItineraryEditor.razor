@@ -31,19 +31,19 @@
 
 
         <!--<button class="btn btn-link p-0 d-flex align-items-center text-decoration-none" -->
-       <!--         @onclick="ToggleConfig"-->
+        <!--         @onclick="ToggleConfig"-->
         <!--        aria-expanded="@isConfigOpen"-->
         <!--        aria-controls="configCollapse">-->
         <!--    <i class="bi bi-gear me-2"></i>-->
         <!--    <strong>Configuration</strong>-->
         <!--    <i class="bi @(isConfigOpen ? "bi-chevron-up" : "bi-chevron-down") ms-2"></i>-->
-           <!-- </button>
-    </div>
+        <!-- </button>
+        </div>
 
-    @if (isConfigOpen)
-    {
-        <div class="d-flex gap-4 p-3 border rounded w-100 mb-3 time-config-container">
-            <!-- Day starts at -->
+        @if (isConfigOpen)
+        {
+                <div class="d-flex gap-4 p-3 border rounded w-100 mb-3 time-config-container">
+                    <!-- Day starts at -->
             <div class="d-flex flex-column" style="min-width: 150px;">
                 <div class="d-flex align-items-center mb-1">
                     <label class="form-label mb-0 me-1">Day starts at:</label>
@@ -95,7 +95,7 @@
         </div>
     }
 
-  @*   <div>
+    @*   <div>
         @SavedPlaces.Count()
     </div> *@
 
@@ -163,9 +163,9 @@
                               Class="sortable-container"
                               Id="@($"sortable-{group.Date}")"
                               AllowSorting="false"> *@
-
+                @* 
                 <SortableList TItem="ItineraryPlaceViewModel"
-                              Group=""
+                              Group=""pu
                               Name="@group.Date"
                               Data="@group.ItineraryPlaces"
                               Context="item"
@@ -173,7 +173,10 @@
                               Class="sortable-container"
                               Id="@($"sortable-{group.Date}")"
                               AllowSorting="false">
-                    <ItemTemplate>
+                    <ItemTemplate> *@
+                <ul style="padding-left: 0; margin-left: 0; list-style: none;">
+                    @foreach (var item in group.ItineraryPlaces)
+                    {
                         <div style="min-height:60px; display:flex; align-items:center;">
                             @{
                                 var index = group.ItineraryPlaces.IndexOf(item);
@@ -317,12 +320,12 @@
                                                             @onclick='() => OnMenuItemClicked(group, item, MenuOption.Move)'>
                                                         <i class="bi bi-box-arrow-left me-1"></i>
                                                         @(
-                                                                                                    MoveFirstItem == null
-                                                                                                    ? "Move This"
-                                                                                                    : MoveFirstItem == item
-                                                                                                    ? "Cancel Move"
-                                                                                                    : "Move Now"
-                                                                                                    )
+                                                                                                MoveFirstItem == null
+                                                                                                ? "Move This"
+                                                                                                : MoveFirstItem == item
+                                                                                                ? "Cancel Move"
+                                                                                                : "Move Now"
+                                                                                                )
                                                     </button>
                                                 </li>
                                                 <li>
@@ -330,12 +333,12 @@
                                                             @onclick='() => OnMenuItemClicked(group, item, MenuOption.Swap)'>
                                                         <i class="bi bi-shuffle me-1"></i>
                                                         @(
-                                                                                                    SwapFirstItem == null
-                                                                                                    ? "Enter Swap"
-                                                                                                    : SwapFirstItem == item
-                                                                                                    ? "Cancel Swap"
-                                                                                                    : "Swap Now"
-                                                                                                    )
+                                                                                                SwapFirstItem == null
+                                                                                                ? "Enter Swap"
+                                                                                                : SwapFirstItem == item
+                                                                                                ? "Cancel Swap"
+                                                                                                : "Swap Now"
+                                                                                                )
                                                 </button>
                                             </li>
                                             <!-- Schedule main label -->
@@ -377,7 +380,7 @@
                                             </li>
                                         </ul>
                                     </div>
-                                                        }
+                                                }
                                 </div>
                             </div>
 
@@ -394,8 +397,10 @@
                                 </div>
                             }
                         </div>
-                    </ItemTemplate>
-                </SortableList>
+                    }
+                </ul>
+                @* </ItemTemplate>
+                </SortableList> *@
             </div>
         }
     }
@@ -737,7 +742,7 @@
                 <span class="popup-title"><i class="bi bi-bookmark me-1"></i>Saved Items</span>
                 <button class="close-btn" @onclick="CloseSavedListModal">×</button>
             </div>
-            <div class="card-body">                
+            <div class="card-body">
                 <SavedListSelector SavedPlaces="@SavedPlaces"
                                    GroupDate="@_originalGroup?.Date"
                                    IsEditMode="@savedListEditMode"

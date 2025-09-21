@@ -13,6 +13,13 @@
                            rows="2" Disabled />
 
             <!-- Open in browser -->
+           @*  <button type="button"
+                    class="btn btn-outline-secondary btn-sm me-1"
+                    title="Open in Google Maps"
+                    @onclick='() => OpenMap("google")'>
+                <i class="fa-brands fa-google"></i>
+            </button> *@
+
             <button type="button"
                     class="btn btn-outline-secondary btn-sm me-1"
                     title="Open in Google Maps"
@@ -38,6 +45,11 @@
                     @onclick="() => CopyAddress(ExpandedItem.Place.FormattedAddress)">
                 <i class="bi bi-copy"></i>
             </button>
+
+          @*   <button @onclick='() => JS.InvokeVoidAsync("navigator.clipboard.writeText", ExpandedItem.Place.FormattedAddress)'>
+                Copy URL
+            </button> *@
+
 
             <!-- Copied message only for Address -->
             <div class="ms-auto">
@@ -129,11 +141,22 @@
     {
         if (ExpandedItem?.Place == null) return;
 
-        JS.InvokeVoidAsync("openMaps",
-            ExpandedItem.Place.GooglePlaceId,
-            ExpandedItem.Place.Lat,
-            ExpandedItem.Place.Lng,
-            mapType);
+        var lat = ExpandedItem.Place.Lat;
+        var lng = ExpandedItem.Place.Lng;
+        if (lat == 0 || lng == 0) return;
+
+        string url;
+        if (mapType == "apple")
+        {
+            url = $"maps://?q={lat},{lng}"; // opens Apple Maps app on iOS
+        }
+        else
+        {
+            var placeId = ExpandedItem.Place.GooglePlaceId;
+            url = $"https://www.google.com/maps/place/?q=place_id:{placeId}";
+        }
+
+        JS.InvokeVoidAsync("open", url, "_blank");
     }
 
     private void OpenUrl(string? url)
@@ -147,6 +170,7 @@
             }
 
             JS.InvokeVoidAsync("open", url, "_blank");
+            // JsInterop.CopyTextToClipboard("open", url, "_blank");
         }
     }
 
@@ -155,7 +179,11 @@
         if (string.IsNullOrWhiteSpace(value)) return;
 
         // Call JS immediately
+
+        // JS.InvokeVoidAsync("navigator.clipboard.writeText", value);
         JS.InvokeVoidAsync("navigator.clipboard.writeText", value);
+        // await JsInterop.CopyTextToClipboard(value);
+
 
         // Show “Copied” message
         copiedAddress = true;

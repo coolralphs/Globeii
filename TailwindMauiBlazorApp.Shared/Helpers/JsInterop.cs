@@ -351,16 +351,12 @@ public class JsInterop : IAsyncDisposable
             await _module!.InvokeVoidAsync("blurActiveElement");
     }
 
-    //public async Task EnableHorizontalDragScroll(string elementId)
-    //{
-    //    if (_module == null)
-    //        await InitializeAsync();
-
-    //    if (_module != null)
-    //        await _module.InvokeVoidAsync("enableHorizontalDragScroll", elementId);
-
-    //}
     public async Task RemoveAllListeners()
+    {
+
+    }
+
+    public async Task CopyTextToClipboard(string text)
     {
         try
         {
@@ -369,7 +365,7 @@ public class JsInterop : IAsyncDisposable
                 await InitializeAsync();
 
             if (_module != null)
-                await _module.InvokeVoidAsync("removeAllListeners");
+                await _module.InvokeVoidAsync("copyTextToClipboard", text);
         }
         catch (Exception ex)
         {
