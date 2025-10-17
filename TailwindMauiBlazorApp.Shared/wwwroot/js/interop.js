@@ -769,14 +769,14 @@ function setupAutocomplete() {
     wrapper.style.right = "0";
     wrapper.style.zIndex = "1000";
     wrapper.appendChild(autocomplete);
-    container.appendChild(wrapper);
+    document.body.appendChild(wrapper);
 
     const selectedPlaceTitle = document.createElement('p');
     selectedPlaceTitle.textContent = '';
-    container.appendChild(selectedPlaceTitle);
+    document.body.appendChild(selectedPlaceTitle);
     const selectedPlaceInfo = document.createElement('pre');
     selectedPlaceInfo.textContent = '';
-    container.appendChild(selectedPlaceInfo);
+    document.body.appendChild(selectedPlaceInfo);
     selectedPlaceTitle.textContent = 'Selected Place:';
 
     //autocomplete.addEventListener('gmp-select', async ({ placePrediction }) => {
