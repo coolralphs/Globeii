@@ -61,6 +61,9 @@
                                     <i class="bi bi-search"></i>
                                 </button>
                             </div>
+                            <small class="d-block text-muted text-center line-clamp-2">
+                                @Model.DeparturePlace?.FormattedAddress
+                            </small>
                         </div>
 
                         <div class="m-2">
@@ -75,6 +78,9 @@
                                     <i class="bi bi-search"></i>
                                 </button>
                             </div>
+                            <small class="d-block text-muted text-center line-clamp-2">
+                                @Model.DestinationPlace?.FormattedAddress
+                            </small>
                         </div>
                     }
                     else
@@ -91,6 +97,9 @@
                                     <i class="bi bi-search"></i>
                                 </button>
                             </div>
+                            <small class="d-block text-muted text-center line-clamp-2">
+                                @Model.Place?.FormattedAddress
+                            </small>
                         </div>
                     }
 

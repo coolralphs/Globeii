@@ -1707,3 +1707,14 @@ button,
             /*position: relative;*/
             /*top: 1px;*/ /* pushes it down so it covers the global underline */
         }
+
+#myAccordion .accordion-body {
+    padding: 5px !important;
+}
+
+.line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2; /* number of lines */
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
