@@ -739,26 +739,71 @@ export function recreateAutocomplete(dotNetHelper) {
     setupAutocomplete();
 }
 
+//function setupAutocomplete() {
+//    const container = document.getElementById("autocompleteContainer");
+
+//    if (!container) {
+//        //console.error("❌ autocompleteContainer not found.");
+//        return;
+//    }
+
+
+//    container.innerHTML = ""; // Clear first
+//    // Create and insert the autocomplete element
+//    autocomplete = new google.maps.places.PlaceAutocompleteElement();
+//    container.appendChild(autocomplete);
+
+//    autocompleteHandler = async ({ placePrediction }) => {
+//        await handlePlaceSelect(placePrediction);
+//    };
+
+//    // Add event listener
+//    autocomplete.addEventListener("gmp-select", handlePlaceSelect);
+//}
+
 function setupAutocomplete() {
     const container = document.getElementById("autocompleteContainer");
-
-    if (!container) {
-        //console.error("❌ autocompleteContainer not found.");
-        return;
-    }
-
+    if (!container) return;
 
     container.innerHTML = ""; // Clear first
+
     // Create and insert the autocomplete element
     autocomplete = new google.maps.places.PlaceAutocompleteElement();
     container.appendChild(autocomplete);
 
-    autocompleteHandler = async ({ placePrediction }) => {
+    // Handle place selection
+    const autocompleteHandler = async ({ placePrediction }) => {
         await handlePlaceSelect(placePrediction);
     };
+    autocomplete.addEventListener("gmp-select", autocompleteHandler);
 
-    // Add event listener
-    autocomplete.addEventListener("gmp-select", handlePlaceSelect);
+    // ✅ --- iPhone scroll fix section ---
+    // Scroll into view when the input gains focus
+    autocomplete.addEventListener("focus", () => {
+        // Give iOS a small delay so the keyboard opens first
+        setTimeout(() => {
+            autocomplete.scrollIntoView({
+                behavior: "smooth",
+                block: "start",
+            });
+        }, 300);
+    });
+
+    // Optional: also handle while typing
+    autocomplete.addEventListener("input", () => {
+        const rect = autocomplete.getBoundingClientRect();
+        if (rect.bottom > window.innerHeight * 0.75) {
+            window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+    });
+
+    // Optional: add bottom padding when keyboard is open (prevents overlap)
+    window.addEventListener("focusin", () => {
+        document.body.style.paddingBottom = "300px";
+    });
+    window.addEventListener("focusout", () => {
+        document.body.style.paddingBottom = "0";
+    });
 }
 
 export function initAutocompleteElementById(dotNetHelper, elementId) {
