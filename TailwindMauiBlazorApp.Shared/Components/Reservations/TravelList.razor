@@ -28,14 +28,36 @@
                     <div class="d-flex flex-column align-items-center w-100">
                         @if (item.ReservationType == ReservationType.Travel)
                         {
-                            <div class="text-truncate w-100 text-center">
-                                <i class="@item.ReservationSubType?.GetIconClass() me-1"></i>
-                                @item.DeparturePlace?.DisplayName
+                            <div class="d-flex align-items-center justify-content-end gap-0">
+                                <div class="text-truncate w-100 text-center pe-1">
+                                    <i class="@item.ReservationSubType?.GetIconClass() me-1"></i>
+                                    @item.DeparturePlace?.DisplayName
+                                </div>
+                                @if (item.Notes is not null && item.Notes.Length > 0)
+                                {
+                                    <i class="bi bi-sticky" style="color: #FFD966;" title="Has notes"></i>
+                                }
+                                @if (item.Url is not null && item.Url.Length > 0)
+                                {
+                                    <i class="bi-link-45deg text-primary" title="Has URL"></i>
+                                }
+                                @if (item.IsAvailableInApp)
+                                {
+                                    <i class="bi bi-phone text-info" title="Is available in app"></i>
+                                }
+                                @if (item.HasMeal)
+                                {
+                                    <i class="fa fa-cutlery text-black" title="Has meal(s)"></i>
+                                }
                             </div>
+
+                            <small class="d-block text-truncate text-muted">
+                                @item.DeparturePlace?.FormattedAddress
+                            </small>
 
                             @if (item.StartTime != default)
                             {
-                                <small class="text-muted">
+                                <small>
                                     @DateTime.Today.Add(item.StartTime).ToString("h:mm tt")
                                 </small>
                             }
@@ -46,36 +68,67 @@
                                 <i class="@item.ReservationSubType?.GetIconClass() me-1"></i>
                                 @item.DestinationPlace?.DisplayName
                             </div>
+                            <small class="d-block text-truncate text-muted">
+                                @item.DestinationPlace?.FormattedAddress
+                            </small>
 
                             @if (item.EndTime != default)
                             {
-                                <small class="text-muted">
+                                <small>
                                     @DateTime.Today.Add(item.EndTime).ToString("h:mm tt")
-                                    <sup>+@(TotalDays(item.StartDate, item.EndDate) - 1)</sup>
+                                    @if ((TotalDays(item.StartDate, item.EndDate) - 1) > 0)
+                                    {
+                                        <sup>+@(TotalDays(item.StartDate, item.EndDate) - 1)</sup>
+                                    }
                                 </small>
                             }
                         }
                         else if (item.ReservationType == ReservationType.Accomodation)
                         {
-                            <div class="text-truncate w-100 text-center">
-                                <i class="@item.ReservationSubType?.GetIconClass() me-1"></i>
-                                @item.Place?.DisplayName
+                            <div class="d-flex flex-column align-items-center w-100">                                
+
+                                <div class="d-flex align-items-center justify-content-end gap-0">
+                                    <i class="@item.ReservationSubType?.GetIconClass() me-1"></i>
+                                    <div class="text-truncate w-100 text-center pe-1">
+                                        @item.Place?.DisplayName
+                                    </div>
+                                    @if (item.Notes is not null && item.Notes.Length > 0)
+                                    {
+                                        <i class="bi bi-sticky" style="color: #FFD966;" title="Has notes"></i>
+                                    }
+                                    @if (item.Url is not null && item.Url.Length > 0)
+                                    {
+                                        <i class="bi-link-45deg text-primary" title="Has URL"></i>
+                                    }
+                                    @if (item.IsAvailableInApp)
+                                    {
+                                        <i class="bi bi-phone text-info" title="Is available in app"></i>
+                                    }
+                                    @if (item.HasMeal)
+                                    {
+                                        <i class="fa fa-cutlery text-black" title="Has meal(s)"></i>
+                                    }
+                                </div>
+                               
+                                <small class="d-block text-truncate text-muted">
+                                    @item.Place?.FormattedAddress
+                                </small>
                             </div>
 
                             @if (item.StartTime != default)
                             {
-                                <small class="text-muted">
+                                <small>
                                     @($"Check-In: {item.StartDate.ToShortDateString()} @ {DateTime.Today.Add(item.StartTime).ToString("h:mm tt")}")
                                 </small>
-                                <small class="text-muted">
+                                <small>
                                     @($"Check-Out: {item.EndDate.ToShortDateString()} @ {DateTime.Today.Add(item.EndTime).ToString("h:mm tt")}")
                                 </small>
                             }
-                        }                        
+                        }
                         else
                         {
 
-                            <div class="text-truncate w-100 text-center">
+                            <div class="d-flex align-items-center justify-content-end gap-0">
                                 @if (item.ReservationType == ReservationType.Activities)
                                 {
                                     <i class="@item.ReservationSubType?.GetIconClass() me-1"></i>
@@ -92,12 +145,36 @@
                                 {
                                     <i class="fa fa-question-circle me-1"></i>
                                 }
-                                @item.Place?.DisplayName
+                                <div class="d-flex align-items-center justify-content-end gap-0">
+                                    <div class="text-truncate w-100 text-center pe-1">
+                                        @item.Place?.DisplayName
+                                    </div>
+                                    @if (item.Notes is not null && item.Notes.Length > 0)
+                                    {
+                                        <i class="bi bi-sticky" style="color: #FFD966;" title="Has notes"></i>
+                                    }
+                                    @if (item.Url is not null && item.Url.Length > 0)
+                                    {
+                                        <i class="bi-link-45deg text-primary" title="Has URL"></i>
+                                    }
+                                    @if (item.IsAvailableInApp)
+                                    {
+                                        <i class="bi bi-phone text-info" title="Is available in app"></i>
+                                    }
+                                    @if (item.HasMeal)
+                                    {
+                                        <i class="fa fa-cutlery text-black" title="Has meal(s)"></i>
+                                    }
+                                </div>
                             </div>
+
+                            <small class="d-block text-truncate text-muted">
+                                @item.Place?.FormattedAddress
+                            </small>
 
                             @if (item.StartTime != default)
                             {
-                                <small class="text-muted">
+                                <small>
                                     @DateTime.Today.Add(item.StartTime).ToString("h:mm tt")
                                 </small>
                             }

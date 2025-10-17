@@ -35,6 +35,13 @@ builder.Services.AddScoped<IIPlaceService, IPlaceService>();
 builder.Services.AddScoped<JsInterop>();
 builder.Services.AddBlazorBootstrap();
 
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    options.Cookie.SameSite = SameSiteMode.None;
+    options.Cookie.HttpOnly = true;
+});
+
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
@@ -160,12 +167,12 @@ builder.Services.AddAutoMapper(cfg =>
     cfg.AddProfile<MappingProfile>();
 });
 
-builder.Services.ConfigureApplicationCookie(options =>
-{
-    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-    options.Cookie.SameSite = SameSiteMode.None;
-    options.Cookie.HttpOnly = true;
-});
+//builder.Services.ConfigureApplicationCookie(options =>
+//{
+//    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+//    options.Cookie.SameSite = SameSiteMode.None;
+//    options.Cookie.HttpOnly = true;
+//});
 
 var app = builder.Build();
 
