@@ -12,10 +12,16 @@ let fitResizeHandler = null;
 
 //declared these globally to remove listeners
 let autocomplete = null;
+let searchWrapper = null;
+let selectedPlaceTitle = null;
+let selectedPlaceInfo = null;
+
 let wrapper = null;
 let handleWheel = null;
 let handleClick = null;
 let autocompleteHandler = null;
+
+let dynamicElements = [];
 
 export function loadScript(src) {
     if (scriptLoadStates.has(src)) {
@@ -247,7 +253,7 @@ export function createGlobe(elementId, places) {
                 wrapper.style.color = d.iconColor || d.color || 'white';
                 wrapper.style.cursor = 'pointer';
                 wrapper.style.filter = 'drop-shadow(0 1px 2px rgba(0,0,0,.4))';
-                wrapper.style.fontSize = `${d.size || 25}px`; 
+                wrapper.style.fontSize = `${d.size || 25}px`;
                 wrapper.style.transform = 'translate(-50%, -100%)';
                 wrapper.style.position = 'absolute'; // ensures transform works relative to globe
 
@@ -751,7 +757,7 @@ function setupAutocomplete() {
     container.innerHTML = ""; // Clear first
     // Create and insert the autocomplete element
     autocomplete = new google.maps.places.PlaceAutocompleteElement();
-    //container.appendChild(autocomplete);
+    container.appendChild(autocomplete);
 
     //container.appendChild(autocomplete);
 
@@ -762,22 +768,23 @@ function setupAutocomplete() {
     //selectedPlaceInfo.textContent = '';
     //container.appendChild(selectedPlaceInfo);
 
-    const wrapper = document.createElement("div");
-    wrapper.style.position = "fixed";
-    wrapper.style.top = "0";
-    wrapper.style.left = "0";
-    wrapper.style.right = "0";
-    wrapper.style.zIndex = "1000";
-    wrapper.appendChild(autocomplete);
-    document.body.appendChild(wrapper);
+    //searchWrapper = document.createElement("div");
+    //searchWrapper.style.position = "fixed";
+    //searchWrapper.style.top = "2px";
+    //searchWrapper.style.left = "0";
+    //searchWrapper.style.right = "0";
+    //searchWrapper.style.zIndex = "1000";
+    //searchWrapper.appendChild(autocomplete);
+    /*document.body.appendChild(searchWrapper);*/
 
-    const selectedPlaceTitle = document.createElement('p');
-    selectedPlaceTitle.textContent = '';
-    document.body.appendChild(selectedPlaceTitle);
-    const selectedPlaceInfo = document.createElement('pre');
-    selectedPlaceInfo.textContent = '';
-    document.body.appendChild(selectedPlaceInfo);
-    selectedPlaceTitle.textContent = 'Selected Place:';
+    //selectedPlaceTitle = document.createElement('p');
+    //selectedPlaceTitle.textContent = '';
+    //document.body.appendChild(selectedPlaceTitle);
+    //selectedPlaceInfo = document.createElement('pre');
+    //selectedPlaceInfo.textContent = '';
+
+    //document.body.appendChild(selectedPlaceInfo);
+    //selectedPlaceTitle.textContent = 'Selected Place:';
 
     //autocomplete.addEventListener('gmp-select', async ({ placePrediction }) => {
     //    const place = placePrediction.toPlace();
@@ -786,12 +793,14 @@ function setupAutocomplete() {
     //    selectedPlaceInfo.textContent = JSON.stringify(place.toJSON(), /* replacer */ null, /* space */ 2);
     //});
 
+
+
     autocompleteHandler = async ({ placePrediction }) => {
         await handlePlaceSelect(placePrediction);
     };
 
     //// Add event listener
-    //autocomplete.addEventListener("gmp-select", handlePlaceSelect);
+    autocomplete.addEventListener("gmp-select", handlePlaceSelect);
 }
 
 export function initAutocompleteElementById(dotNetHelper, elementId) {
@@ -1000,7 +1009,6 @@ export function registerOffcanvasCloseHandler(offcanvasId, dotNetHelper) {
 
 export function removeAllListeners() {
 
-
     if (clickHandler) {
         document.removeEventListener('click', clickHandler);
         clickHandler = null;
@@ -1015,7 +1023,18 @@ export function removeAllListeners() {
             autocomplete.removeEventListener("gmp-select", autocompleteHandler);
             autocompleteHandler = null;
         }
+        autocomplete.remove(); // optional, if it was added to DOM
         autocomplete = null;
+    }
+
+    if (selectedPlaceTitle && selectedPlaceTitle.parentNode) {
+        selectedPlaceTitle.parentNode.removeChild(selectedPlaceTitle);
+        selectedPlaceTitle = null;
+    }
+
+    if (searchWrapper && searchWrapper.parentNode) {
+        searchWrapper.parentNode.removeChild(searchWrapper);
+        searchWrapper = null;
     }
 
     if (wrapper) {

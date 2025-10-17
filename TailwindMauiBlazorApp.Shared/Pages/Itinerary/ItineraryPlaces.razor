@@ -1570,8 +1570,9 @@ else
         switch (_mainMenu)
         {
             case MenuOption.Places:
-                await ToggleOffcanvasFullScreen(false);
+                await ToggleOffcanvasFullScreen(true);
                 await OpenOffcanvasHalfScreen();
+                await JsInterop.RecreateAutocomplete(objRef);
                 break;
             case MenuOption.ScheduleEditor:
                 await ToggleOffcanvasFullScreen(true);
