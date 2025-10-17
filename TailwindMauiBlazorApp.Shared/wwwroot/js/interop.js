@@ -739,71 +739,59 @@ export function recreateAutocomplete(dotNetHelper) {
     setupAutocomplete();
 }
 
-//function setupAutocomplete() {
-//    const container = document.getElementById("autocompleteContainer");
-
-//    if (!container) {
-//        //console.error("❌ autocompleteContainer not found.");
-//        return;
-//    }
-
-
-//    container.innerHTML = ""; // Clear first
-//    // Create and insert the autocomplete element
-//    autocomplete = new google.maps.places.PlaceAutocompleteElement();
-//    container.appendChild(autocomplete);
-
-//    autocompleteHandler = async ({ placePrediction }) => {
-//        await handlePlaceSelect(placePrediction);
-//    };
-
-//    // Add event listener
-//    autocomplete.addEventListener("gmp-select", handlePlaceSelect);
-//}
-
 function setupAutocomplete() {
     const container = document.getElementById("autocompleteContainer");
-    if (!container) return;
+
+    if (!container) {
+        //console.error("❌ autocompleteContainer not found.");
+        return;
+    }
+
 
     container.innerHTML = ""; // Clear first
-
     // Create and insert the autocomplete element
     autocomplete = new google.maps.places.PlaceAutocompleteElement();
-    container.appendChild(autocomplete);
+    //container.appendChild(autocomplete);
 
-    // Handle place selection
-    const autocompleteHandler = async ({ placePrediction }) => {
+    //container.appendChild(autocomplete);
+
+    //const selectedPlaceTitle = document.createElement('p');
+    //selectedPlaceTitle.textContent = '';
+    //container.appendChild(selectedPlaceTitle);
+    //const selectedPlaceInfo = document.createElement('pre');
+    //selectedPlaceInfo.textContent = '';
+    //container.appendChild(selectedPlaceInfo);
+
+    const wrapper = document.createElement("div");
+    wrapper.style.position = "fixed";
+    wrapper.style.top = "0";
+    wrapper.style.left = "0";
+    wrapper.style.right = "0";
+    wrapper.style.zIndex = "1000";
+    wrapper.appendChild(autocomplete);
+    container.appendChild(wrapper);
+
+    const selectedPlaceTitle = document.createElement('p');
+    selectedPlaceTitle.textContent = '';
+    container.appendChild(selectedPlaceTitle);
+    const selectedPlaceInfo = document.createElement('pre');
+    selectedPlaceInfo.textContent = '';
+    container.appendChild(selectedPlaceInfo);
+    selectedPlaceTitle.textContent = 'Selected Place:';
+
+    //autocomplete.addEventListener('gmp-select', async ({ placePrediction }) => {
+    //    const place = placePrediction.toPlace();
+    //    await place.fetchFields({ fields: ['displayName', 'formattedAddress', 'location'] });
+    //    selectedPlaceTitle.textContent = 'Selected Place:';
+    //    selectedPlaceInfo.textContent = JSON.stringify(place.toJSON(), /* replacer */ null, /* space */ 2);
+    //});
+
+    autocompleteHandler = async ({ placePrediction }) => {
         await handlePlaceSelect(placePrediction);
     };
-    autocomplete.addEventListener("gmp-select", autocompleteHandler);
 
-    // ✅ --- iPhone scroll fix section ---
-    // Scroll into view when the input gains focus
-    autocomplete.addEventListener("focus", () => {
-        // Give iOS a small delay so the keyboard opens first
-        setTimeout(() => {
-            autocomplete.scrollIntoView({
-                behavior: "smooth",
-                block: "start",
-            });
-        }, 300);
-    });
-
-    // Optional: also handle while typing
-    autocomplete.addEventListener("input", () => {
-        const rect = autocomplete.getBoundingClientRect();
-        if (rect.bottom > window.innerHeight * 0.75) {
-            window.scrollTo({ top: 0, behavior: "smooth" });
-        }
-    });
-
-    // Optional: add bottom padding when keyboard is open (prevents overlap)
-    window.addEventListener("focusin", () => {
-        document.body.style.paddingBottom = "300px";
-    });
-    window.addEventListener("focusout", () => {
-        document.body.style.paddingBottom = "0";
-    });
+    //// Add event listener
+    //autocomplete.addEventListener("gmp-select", handlePlaceSelect);
 }
 
 export function initAutocompleteElementById(dotNetHelper, elementId) {
