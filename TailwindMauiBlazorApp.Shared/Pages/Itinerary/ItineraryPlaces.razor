@@ -190,15 +190,15 @@ else
             {
                 <div class="menu-dropdown shadow border rounded bg-white"
                      style="
-                                                width: 200px;
-                                                position: absolute;
-                                                bottom: 0;
-                                                right: 100%;
-                                                margin-right: 0.5rem;
-                                                transform: translateY(-4px);
-                                                z-index: 9999;
-                                                padding: 0.25rem 0;
-                                                box-sizing: border-box;">
+                                                        width: 200px;
+                                                        position: absolute;
+                                                        bottom: 0;
+                                                        right: 100%;
+                                                        margin-right: 0.5rem;
+                                                        transform: translateY(-4px);
+                                                        z-index: 9999;
+                                                        padding: 0.25rem 0;
+                                                        box-sizing: border-box;">
 
                     <ul class="list-unstyled mb-0">
                         <li>
@@ -797,7 +797,10 @@ else
                 }
 
                 if (itinerary is null)
+                {
+                    Nav.NavigateTo($"/itineraries");
                     return;
+                }
 
                 foreach (var place in itinerary.ItineraryPlaces)
                 {
@@ -1311,7 +1314,7 @@ else
             itinerary.EndDate = maxEndDate;
             itinerary.UpdatedBy = userId;
             // Update itinerary once
-            
+
             await ItineraryService.UpdateAsync(itinerary);
         }
         finally
