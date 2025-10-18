@@ -1734,5 +1734,5 @@ button,
     overflow-y: auto; /* vertical scroll */
     overflow-x: hidden; /* hide horizontal scroll */
     /*padding-right: 0.5rem;*/ /* optional, avoid scrollbar overlap */
-    padding-bottom: 5rem;
+    padding-bottom: 7rem;
 }
