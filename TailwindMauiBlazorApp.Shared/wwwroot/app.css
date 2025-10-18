@@ -854,6 +854,16 @@ button.btn {
     text-overflow: ellipsis;
 }
 
+.text-truncate-auto {
+    display: inline-block; /* needed for ellipsis to work */
+    max-width: 100%; /* let it take up all remaining space */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: middle; /* aligns nicely with icon */
+}
+
+
 .modal-backdrop.show {
     z-index: 1080 !important;
 }
@@ -1717,4 +1727,12 @@ button,
     -webkit-line-clamp: 2; /* number of lines */
     -webkit-box-orient: vertical;
     overflow: hidden;
+}
+
+.itinerary-edit-container {
+    max-height: calc(50vh - 60px); /* adjust for top globe and padding */
+    overflow-y: auto; /* vertical scroll */
+    overflow-x: hidden; /* hide horizontal scroll */
+    padding-right: 0.5rem; /* optional, avoid scrollbar overlap */
+    padding-bottom: 2rem;
 }
