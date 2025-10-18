@@ -1733,6 +1733,6 @@ button,
     max-height: calc(50vh - 60px); /* adjust for top globe and padding */
     overflow-y: auto; /* vertical scroll */
     overflow-x: hidden; /* hide horizontal scroll */
-    padding-right: 0.5rem; /* optional, avoid scrollbar overlap */
-    padding-bottom: 2rem;
+    /*padding-right: 0.5rem;*/ /* optional, avoid scrollbar overlap */
+    padding-bottom: 5rem;
 }
