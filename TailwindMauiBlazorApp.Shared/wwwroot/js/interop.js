@@ -753,47 +753,10 @@ function setupAutocomplete() {
         return;
     }
 
-
     container.innerHTML = ""; // Clear first
     // Create and insert the autocomplete element
     autocomplete = new google.maps.places.PlaceAutocompleteElement();
     container.appendChild(autocomplete);
-
-    //container.appendChild(autocomplete);
-
-    //const selectedPlaceTitle = document.createElement('p');
-    //selectedPlaceTitle.textContent = '';
-    //container.appendChild(selectedPlaceTitle);
-    //const selectedPlaceInfo = document.createElement('pre');
-    //selectedPlaceInfo.textContent = '';
-    //container.appendChild(selectedPlaceInfo);
-
-    //searchWrapper = document.createElement("div");
-    //searchWrapper.style.position = "fixed";
-    //searchWrapper.style.top = "2px";
-    //searchWrapper.style.left = "0";
-    //searchWrapper.style.right = "0";
-    //searchWrapper.style.zIndex = "1000";
-    //searchWrapper.appendChild(autocomplete);
-    /*document.body.appendChild(searchWrapper);*/
-
-    //selectedPlaceTitle = document.createElement('p');
-    //selectedPlaceTitle.textContent = '';
-    //document.body.appendChild(selectedPlaceTitle);
-    //selectedPlaceInfo = document.createElement('pre');
-    //selectedPlaceInfo.textContent = '';
-
-    //document.body.appendChild(selectedPlaceInfo);
-    //selectedPlaceTitle.textContent = 'Selected Place:';
-
-    //autocomplete.addEventListener('gmp-select', async ({ placePrediction }) => {
-    //    const place = placePrediction.toPlace();
-    //    await place.fetchFields({ fields: ['displayName', 'formattedAddress', 'location'] });
-    //    selectedPlaceTitle.textContent = 'Selected Place:';
-    //    selectedPlaceInfo.textContent = JSON.stringify(place.toJSON(), /* replacer */ null, /* space */ 2);
-    //});
-
-
 
     autocompleteHandler = async ({ placePrediction }) => {
         await handlePlaceSelect(placePrediction);
@@ -1027,15 +990,15 @@ export function removeAllListeners() {
         autocomplete = null;
     }
 
-    if (selectedPlaceTitle && selectedPlaceTitle.parentNode) {
-        selectedPlaceTitle.parentNode.removeChild(selectedPlaceTitle);
-        selectedPlaceTitle = null;
-    }
+    //if (selectedPlaceTitle && selectedPlaceTitle.parentNode) {
+    //    selectedPlaceTitle.parentNode.removeChild(selectedPlaceTitle);
+    //    selectedPlaceTitle = null;
+    //}
 
-    if (searchWrapper && searchWrapper.parentNode) {
-        searchWrapper.parentNode.removeChild(searchWrapper);
-        searchWrapper = null;
-    }
+    //if (searchWrapper && searchWrapper.parentNode) {
+    //    searchWrapper.parentNode.removeChild(searchWrapper);
+    //    searchWrapper = null;
+    //}
 
     if (wrapper) {
         if (handleWheel) wrapper.removeEventListener('wheel', handleWheel);
